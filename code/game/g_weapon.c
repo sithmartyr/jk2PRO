@@ -171,7 +171,7 @@ static void WP_FireBryarPistol( gentity_t *ent, qboolean altFire )
 	int damage = BRYAR_PISTOL_DAMAGE;
 	int count;
 
-	gentity_t	*missile = CreateMissile( muzzle, forward, BRYAR_PISTOL_VEL, 10000, ent, altFire );
+	gentity_t	*missile = CreateMissileNew( muzzle, forward, BRYAR_PISTOL_VEL, 10000, ent, altFire, qtrue, qtrue );
 
 	missile->classname = "bryar_proj";
 	missile->s.weapon = WP_BRYAR_PISTOL;
@@ -224,6 +224,9 @@ static void WP_FireBryarPistol( gentity_t *ent, qboolean altFire )
 	// we don't want it to bounce forever
 	// NOTENOTE These don't bounce yet.
 	missile->bounceCount = 8;
+
+	if (jp_tweakWeapons.integer & WT_PROJECTILE_GRAVITY) //JAPRO - Serverside - Give bullets gravity!
+		missile->s.pos.trType = TR_GRAVITY;
 }
 
 /*
@@ -240,7 +243,7 @@ void WP_FireTurretMissile( gentity_t *ent, vec3_t start, vec3_t dir, qboolean al
 {
 	gentity_t *missile;
 
-	missile = CreateMissile( start, dir, velocity, 10000, ent, altFire );
+	missile = CreateMissileNew( start, dir, velocity, 10000, ent, altFire, qfalse, qfalse );
 
 	missile->classname = "generic_proj";
 	missile->s.weapon = WP_TURRET;
@@ -268,7 +271,7 @@ void WP_FireGenericBlasterMissile( gentity_t *ent, vec3_t start, vec3_t dir, qbo
 {
 	gentity_t *missile;
 
-	missile = CreateMissile( start, dir, velocity, 10000, ent, altFire );
+	missile = CreateMissileNew( start, dir, velocity, 10000, ent, altFire, qfalse, qfalse );
 
 	missile->classname = "generic_proj";
 	missile->s.weapon = WP_BRYAR_PISTOL;
@@ -310,7 +313,7 @@ void WP_FireBlasterMissile( gentity_t *ent, vec3_t start, vec3_t dir, qboolean a
 	}
 */
 	
-	missile = CreateMissile( start, dir, velocity, 10000, ent, altFire );
+	missile = CreateMissileNew( start, dir, velocity, 10000, ent, altFire, qtrue, qtrue );
 
 	missile->classname = "blaster_proj";
 	missile->s.weapon = WP_BLASTER;
@@ -330,6 +333,9 @@ void WP_FireBlasterMissile( gentity_t *ent, vec3_t start, vec3_t dir, qboolean a
 	// we don't want it to bounce forever
 	// NOTENOTE These don't bounce yet.
 	missile->bounceCount = 8;
+
+	if (jp_tweakWeapons.integer & WT_PROJECTILE_GRAVITY) //JAPRO - Serverside - Give bullets gravity!
+		missile->s.pos.trType = TR_GRAVITY;
 }
 
 //---------------------------------------------------------
@@ -347,7 +353,7 @@ void WP_FireEmplacedMissile( gentity_t *ent, vec3_t start, vec3_t dir, qboolean 
 	}
 */
 	
-	missile = CreateMissile( start, dir, velocity, 10000, ent, altFire );
+	missile = CreateMissileNew( start, dir, velocity, 10000, ent, altFire, qfalse, qfalse );
 
 	missile->classname = "emplaced_gun_proj";
 	missile->s.weapon = WP_TURRET;//WP_EMPLACED_GUN;
@@ -377,7 +383,7 @@ void WP_FireEmplacedMissile( gentity_t *ent, vec3_t start, vec3_t dir, qboolean 
 }
 
 //---------------------------------------------------------
-static void WP_FireBlaster( gentity_t *ent, qboolean altFire )
+static void WP_FireBlaster( gentity_t *ent, qboolean altFire, int seed )
 //---------------------------------------------------------
 {
 	vec3_t	dir, angs;
@@ -387,8 +393,22 @@ static void WP_FireBlaster( gentity_t *ent, qboolean altFire )
 	if ( altFire )
 	{
 		// add some slop to the alt-fire direction
-		angs[PITCH] += crandom() * BLASTER_SPREAD;
-		angs[YAW]	+= crandom() * BLASTER_SPREAD;
+		if (jp_tweakWeapons.integer & WT_NO_SPREAD) {
+			angs[PITCH] += crandom() * BLASTER_SPREAD * 0.1;
+			angs[YAW] += crandom() * BLASTER_SPREAD * 0.1;
+		}
+		else if (jp_tweakWeapons.integer & WT_PSEUDORANDOM_FIRE)
+		{
+			float theta = M_PI * Q_crandom(&seed); //Lets use circular spread instead of the shitty box spread?
+			float r = Q_random(&seed) * BLASTER_SPREAD;
+
+			angs[PITCH] += r * sin(theta); //r should be squared? r*r
+			angs[YAW] += r * cos(theta);
+		}
+		else {
+			angs[PITCH] += crandom() * BLASTER_SPREAD;
+			angs[YAW] += crandom() * BLASTER_SPREAD;
+		}
 	}
 
 	AngleVectors( angs, dir, NULL, NULL );
@@ -540,7 +560,10 @@ void WP_DisruptorAltFire( gentity_t *ent )
 	int			traces = DISRUPTOR_ALT_TRACES;
 	qboolean	fullCharge = qfalse;
 
-	damage = DISRUPTOR_ALT_DAMAGE-30;
+	if (jp_tweakWeapons.integer & WT_DISRUPTOR_DAM)
+		damage = DISRUPTOR_ALT_DAMAGE - 40;//60
+	else
+		damage = DISRUPTOR_ALT_DAMAGE-30;
 
 	/*
 	if (ent->client->ps.zoomMode == 1 &&
@@ -785,7 +808,7 @@ static void WP_BowcasterAltFire( gentity_t *ent )
 {
 	int	damage	= BOWCASTER_DAMAGE;
 
-	gentity_t *missile = CreateMissile( muzzle, forward, BOWCASTER_VELOCITY, 10000, ent, qfalse);
+	gentity_t *missile = CreateMissileNew( muzzle, forward, BOWCASTER_VELOCITY, 10000, ent, qfalse, qtrue, qtrue);
 
 	missile->classname = "bowcaster_proj";
 	missile->s.weapon = WP_BOWCASTER;
@@ -802,10 +825,13 @@ static void WP_BowcasterAltFire( gentity_t *ent )
 
 	missile->s.eFlags |= EF_BOUNCE;
 	missile->bounceCount = 3;
+
+	if (jp_tweakWeapons.integer & WT_PROJECTILE_GRAVITY) //JAPRO - Serverside - Give bullets gravity!
+		missile->s.pos.trType = TR_GRAVITY;
 }
 
 //---------------------------------------------------------
-static void WP_BowcasterMainFire( gentity_t *ent )
+static void WP_BowcasterMainFire( gentity_t *ent, int seed )
 //---------------------------------------------------------
 {
 	int			damage	= BOWCASTER_DAMAGE, count;
@@ -868,12 +894,38 @@ static void WP_BowcasterMainFire( gentity_t *ent )
 		vectoangles( forward, angs );
 
 		// add some slop to the alt-fire direction
-		angs[PITCH] += crandom() * BOWCASTER_ALT_SPREAD * 0.2f;
-		angs[YAW]	+= ((i+0.5f) * BOWCASTER_ALT_SPREAD - count * 0.5f * BOWCASTER_ALT_SPREAD );
+		if (jp_tweakWeapons.integer & WT_BOWCASTER_SPRD) {
+			if (i == 1) {
+				angs[PITCH] += 0.65f * BOWCASTER_ALT_SPREAD;
+				angs[YAW] += 0.65f * BOWCASTER_ALT_SPREAD;
+			}
+			else if (i == 2) {
+				angs[PITCH] += 0.65f * BOWCASTER_ALT_SPREAD;
+				angs[YAW] -= 0.65f * BOWCASTER_ALT_SPREAD;
+			}
+			else if (i == 3) {
+				angs[PITCH] -= 0.65f * BOWCASTER_ALT_SPREAD;
+				angs[YAW] += 0.65f * BOWCASTER_ALT_SPREAD;
+			}
+			else if (i == 4) {
+				angs[PITCH] -= 0.65f * BOWCASTER_ALT_SPREAD;
+				angs[YAW] -= 0.65f * BOWCASTER_ALT_SPREAD;
+			}
+		}
+		else {
+			if (jp_tweakWeapons.integer & WT_PSEUDORANDOM_FIRE) {
+				angs[PITCH] += Q_crandom(&seed) * BOWCASTER_ALT_SPREAD * 0.2f;
+				angs[YAW] += ((i + 0.5f) * BOWCASTER_ALT_SPREAD - count * 0.5f * BOWCASTER_ALT_SPREAD);
+			}
+			else {
+				angs[PITCH] += crandom() * BOWCASTER_ALT_SPREAD * 0.2f;
+				angs[YAW] += ((i + 0.5f) * BOWCASTER_ALT_SPREAD - count * 0.5f * BOWCASTER_ALT_SPREAD);
+			}
+		}
 		
 		AngleVectors( angs, dir, NULL, NULL );
 
-		missile = CreateMissile( muzzle, dir, vel, 10000, ent, qtrue );
+		missile = CreateMissileNew( muzzle, dir, vel, 10000, ent, qtrue, qtrue, qtrue );
 
 		missile->classname = "bowcaster_alt_proj";
 		missile->s.weapon = WP_BOWCASTER;
@@ -890,11 +942,14 @@ static void WP_BowcasterMainFire( gentity_t *ent )
 
 		// we don't want it to bounce
 		missile->bounceCount = 0;
+
+		if (jp_tweakWeapons.integer & WT_PROJECTILE_GRAVITY) //JAPRO - Serverside - Give bullets gravity!
+			missile->s.pos.trType = TR_GRAVITY;
 	}
 }
 
 //---------------------------------------------------------
-static void WP_FireBowcaster( gentity_t *ent, qboolean altFire )
+static void WP_FireBowcaster( gentity_t *ent, qboolean altFire, int seed )
 //---------------------------------------------------------
 {
 	if ( altFire )
@@ -903,7 +958,7 @@ static void WP_FireBowcaster( gentity_t *ent, qboolean altFire )
 	}
 	else
 	{
-		WP_BowcasterMainFire( ent );
+		WP_BowcasterMainFire( ent, seed );
 	}
 }
 
@@ -923,7 +978,7 @@ static void WP_RepeaterMainFire( gentity_t *ent, vec3_t dir )
 {
 	int	damage	= REPEATER_DAMAGE;
 
-	gentity_t *missile = CreateMissile( muzzle, dir, REPEATER_VELOCITY, 10000, ent, qfalse );
+	gentity_t *missile = CreateMissileNew( muzzle, dir, REPEATER_VELOCITY, 10000, ent, qfalse, qtrue, qtrue );
 
 	missile->classname = "repeater_proj";
 	missile->s.weapon = WP_REPEATER;
@@ -935,6 +990,9 @@ static void WP_RepeaterMainFire( gentity_t *ent, vec3_t dir )
 
 	// we don't want it to bounce forever
 	missile->bounceCount = 8;
+
+	if (jp_tweakWeapons.integer & WT_PROJECTILE_GRAVITY) //JAPRO - Serverside - Give bullets gravity!
+		missile->s.pos.trType = TR_GRAVITY;
 }
 
 //---------------------------------------------------------
@@ -943,7 +1001,7 @@ static void WP_RepeaterAltFire( gentity_t *ent )
 {
 	int	damage	= REPEATER_ALT_DAMAGE;
 
-	gentity_t *missile = CreateMissile( muzzle, forward, REPEATER_ALT_VELOCITY, 10000, ent, qtrue );
+	gentity_t *missile = CreateMissileNew( muzzle, forward, REPEATER_ALT_VELOCITY, 10000, ent, qtrue, qtrue, qtrue );
 
 	missile->classname = "repeater_alt_proj";
 	missile->s.weapon = WP_REPEATER;
@@ -961,12 +1019,19 @@ static void WP_RepeaterAltFire( gentity_t *ent )
 	missile->splashDamage = REPEATER_ALT_SPLASH_DAMAGE;
 	missile->splashRadius = REPEATER_ALT_SPLASH_RADIUS;
 
+	//[JAPRO - Serverside - Weapons - Tweak weapons Buff Repeater Orb Dmg - Start]
+	if (jp_tweakWeapons.integer & WT_REPEATER_ALT_DAM) {
+		missile->damage *= (7.0f / 6.0f);
+		missile->splashDamage *= (7.0f / 6.0f);
+	}
+	//[JAPRO - Serverside - Weapons - Tweak weapons Buff Repeater Orb Dmg - End]
+
 	// we don't want it to bounce forever
 	missile->bounceCount = 8;
 }
 
 //---------------------------------------------------------
-static void WP_FireRepeater( gentity_t *ent, qboolean altFire )
+static void WP_FireRepeater( gentity_t *ent, qboolean altFire, int seed )
 //---------------------------------------------------------
 {
 	vec3_t	dir, angs;
@@ -980,9 +1045,21 @@ static void WP_FireRepeater( gentity_t *ent, qboolean altFire )
 	else
 	{
 		// add some slop to the alt-fire direction
-		angs[PITCH] += crandom() * REPEATER_SPREAD;
-		angs[YAW]	+= crandom() * REPEATER_SPREAD;
+		if (jp_tweakWeapons.integer & WT_NO_SPREAD) {
+			angs[PITCH] += crandom() * BLASTER_SPREAD * 0.1;
+			angs[YAW] += crandom() * BLASTER_SPREAD * 0.1;
+		}
+		else if (jp_tweakWeapons.integer & WT_PSEUDORANDOM_FIRE) {
+			float theta = M_PI * Q_crandom(&seed); //Lets use circular spread instead of the shitty box spread?
+			float r = Q_random(&seed) * REPEATER_SPREAD;
 
+			angs[PITCH] += r * sin(theta);
+			angs[YAW] += r * cos(theta);
+		}
+		else {
+			angs[PITCH] += crandom() * REPEATER_SPREAD;
+			angs[YAW] += crandom() * REPEATER_SPREAD;
+		}
 		AngleVectors( angs, dir, NULL, NULL );
 
 		// NOTENOTE if temp_org does not have clear trace to inside the bbox, don't shoot!
@@ -1003,7 +1080,7 @@ static void WP_DEMP2_MainFire( gentity_t *ent )
 {
 	int	damage	= DEMP2_DAMAGE;
 
-	gentity_t *missile = CreateMissile( muzzle, forward, DEMP2_VELOCITY, 10000, ent, qfalse);
+	gentity_t *missile = CreateMissileNew( muzzle, forward, DEMP2_VELOCITY, 10000, ent, qfalse, qtrue, qtrue);
 
 	missile->classname = "demp2_proj";
 	missile->s.weapon = WP_DEMP2;
@@ -1018,6 +1095,9 @@ static void WP_DEMP2_MainFire( gentity_t *ent )
 
 	// we don't want it to ever bounce
 	missile->bounceCount = 0;
+
+	if (jp_tweakWeapons.integer & WT_PROJECTILE_GRAVITY) //JAPRO - Serverside - Give bullets gravity!
+		missile->s.pos.trType = TR_GRAVITY;
 }
 
 static gentity_t *ent_list[MAX_GENTITIES];
@@ -1219,7 +1299,7 @@ static void WP_DEMP2_AltFire( gentity_t *ent )
 	// we treat the trace fraction like it's a time value, meaning that the shot can travel a whopping 4096 units in 1 second
 
 	//missile = CreateMissile( start, forward, DEMP2_ALT_RANGE, tr.fraction * 1000/*time*/, ent, qtrue );
-	missile = G_Spawn();
+	missile = G_Spawn(qfalse);
 	G_SetOrigin(missile, tr.endpos);
 	//rww - I guess it's rather pointless making it a missile anyway, at least for MP.
 
@@ -1271,7 +1351,7 @@ FLECHETTE
 */
 
 //---------------------------------------------------------
-static void WP_FlechetteMainFire( gentity_t *ent )
+static void WP_FlechetteMainFire( gentity_t *ent, int seed )
 //---------------------------------------------------------
 {
 	vec3_t		fwd, angs;
@@ -1282,19 +1362,41 @@ static void WP_FlechetteMainFire( gentity_t *ent )
 	{
 		vectoangles( forward, angs );
 
-		if ( i == 0 )
-		{
-			// do nothing on the first shot, this one will hit the crosshairs
+		if (!(jp_tweakWeapons.integer & WT_FLECHETTE_SPRD)) {
+			if (i != 0)
+			{ // do nothing on the first shot, this one will hit the crosshairs
+				if (jp_tweakWeapons.integer & WT_PSEUDORANDOM_FIRE) {
+					angs[PITCH] += Q_crandom(&seed) * FLECHETTE_SPREAD;
+					angs[YAW] += Q_crandom(&seed) * FLECHETTE_SPREAD;
+				}
+				else {
+					angs[PITCH] += crandom() * FLECHETTE_SPREAD;
+					angs[YAW] += crandom() * FLECHETTE_SPREAD;
+				}
+			}
 		}
-		else
-		{
-			angs[PITCH] += crandom() * FLECHETTE_SPREAD;
-			angs[YAW]	+= crandom() * FLECHETTE_SPREAD;
+		else {
+			if (i == 1) {
+				angs[PITCH] += 0.65f* FLECHETTE_SPREAD;
+				angs[YAW] += 0.65f* FLECHETTE_SPREAD;
+			}
+			else if (i == 2) {
+				angs[PITCH] += 0.65f* FLECHETTE_SPREAD;
+				angs[YAW] -= 0.65f* FLECHETTE_SPREAD;
+			}
+			else if (i == 3) {
+				angs[PITCH] -= 0.65f* FLECHETTE_SPREAD;
+				angs[YAW] += 0.65f* FLECHETTE_SPREAD;
+			}
+			else if (i == 4) {
+				angs[PITCH] -= 0.65f* FLECHETTE_SPREAD;
+				angs[YAW] -= 0.65f* FLECHETTE_SPREAD;
+			}
 		}
 
 		AngleVectors( angs, fwd, NULL, NULL );
 
-		missile = CreateMissile( muzzle, fwd, FLECHETTE_VEL, 10000, ent, qfalse);
+		missile = CreateMissileNew( muzzle, fwd, FLECHETTE_VEL, 10000, ent, qfalse, qtrue, qtrue );
 
 		missile->classname = "flech_proj";
 		missile->s.weapon = WP_FLECHETTE;
@@ -1311,6 +1413,9 @@ static void WP_FlechetteMainFire( gentity_t *ent )
 		missile->bounceCount = Q_irand(5,8);
 
 		missile->s.eFlags |= EF_BOUNCE_SHRAPNEL;
+
+		if (jp_tweakWeapons.integer & WT_PROJECTILE_GRAVITY) //JAPRO - Serverside - Give bullets gravity!
+			missile->s.pos.trType = TR_GRAVITY;
 	}
 }
 
@@ -1412,11 +1517,15 @@ void WP_flechette_alt_blow( gentity_t *ent )
 }
 
 //------------------------------------------------------------------------------
-static void WP_CreateFlechetteBouncyThing( vec3_t start, vec3_t fwd, gentity_t *self )
+static void WP_CreateFlechetteBouncyThing( vec3_t start, vec3_t fwd, gentity_t *self, int i )
 //------------------------------------------------------------------------------
 {
-	gentity_t	*missile = CreateMissile( start, fwd, 700 + random() * 700, 1500 + random() * 2000, self, qtrue );
-	
+	gentity_t	*missile;// = CreateMissile(start, fwd, 700 + random() * 700, 1500 + random() * 2000, self, qtrue);
+	if (jp_tweakWeapons.integer & WT_FLECHETTE_ALT_SPRD)
+		missile = CreateMissileNew(start, fwd, ((1000 + 100 * (i)) * jp_projectileVelocityScale.value), 1500 + random() * 2000, self, qtrue, qtrue, qtrue); //mean of 1050
+	else
+		missile = CreateMissileNew(start, fwd, 700 + random() * 700, 1500 + random() * 2000, self, qtrue, qtrue, qtrue);
+
 	missile->think = WP_flechette_alt_blow;
 
 	missile->activator = self;
@@ -1444,6 +1553,13 @@ static void WP_CreateFlechetteBouncyThing( vec3_t start, vec3_t fwd, gentity_t *
 	missile->splashDamage = FLECHETTE_ALT_SPLASH_DAM;
 	missile->splashRadius = FLECHETTE_ALT_SPLASH_RAD;
 
+	//[JAPRO - Serverside - Weapons - Tweak weapons Nerf Alt Flechette Dmg - Start]
+	if (jp_tweakWeapons.integer & WT_FLECHETTE_ALT_DAM) {
+		missile->damage *= 0.85f;
+		missile->splashDamage *= 0.85f;
+	}
+	//[JAPRO - Serverside - Weapons - Tweak weapons Nerf Alt Flechette Dmg - End]
+
 	missile->r.svFlags = SVF_USE_CURRENT_ORIGIN;
 
 	missile->methodOfDeath = MOD_FLECHETTE_ALT_SPLASH;
@@ -1454,7 +1570,7 @@ static void WP_CreateFlechetteBouncyThing( vec3_t start, vec3_t fwd, gentity_t *
 }
 
 //---------------------------------------------------------
-static void WP_FlechetteAltFire( gentity_t *self )
+static void WP_FlechetteAltFire( gentity_t *self, int seed )
 //---------------------------------------------------------
 {
 	vec3_t 	dir, fwd, start, angs;
@@ -1469,26 +1585,37 @@ static void WP_FlechetteAltFire( gentity_t *self )
 	{
 		VectorCopy( angs, dir );
 
-		dir[PITCH] -= random() * 4 + 8; // make it fly upwards
-		dir[YAW] += crandom() * 2;
+		//[JAPRO - Serverside - Weapons - Tweak weapons Remove Flechette Alt Randomness - Start]
+		if (jp_tweakWeapons.integer & WT_FLECHETTE_ALT_SPRD)
+			dir[PITCH] -= 10;
+		else {
+			if (jp_tweakWeapons.integer & WT_PSEUDORANDOM_FIRE) {
+				dir[PITCH] -= Q_random(&seed) * 4 + 8; // make it fly upwards
+				dir[YAW] += Q_crandom(&seed) * 2;
+			}
+			else {
+				dir[PITCH] -= random() * 4 + 8; // make it fly upwards
+				dir[YAW] += crandom() * 2;
+			}
+		}
 		AngleVectors( dir, fwd, NULL, NULL );
 
-		WP_CreateFlechetteBouncyThing( start, fwd, self );
+		WP_CreateFlechetteBouncyThing( start, fwd, self, i );
 	}
 }
 
 //---------------------------------------------------------
-static void WP_FireFlechette( gentity_t *ent, qboolean altFire )
+static void WP_FireFlechette( gentity_t *ent, qboolean altFire, int seed )
 //---------------------------------------------------------
 {
 	if ( altFire )
 	{
 		//WP_FlechetteProxMine( ent );
-		WP_FlechetteAltFire(ent);
+		WP_FlechetteAltFire(ent, seed);
 	}
 	else
 	{
-		WP_FlechetteMainFire( ent );
+		WP_FlechetteMainFire( ent, seed );
 	}
 }
 
@@ -1612,7 +1739,7 @@ static void WP_FireRocket( gentity_t *ent, qboolean altFire )
 		vel *= 0.5f;
 	}
 
-	missile = CreateMissile( muzzle, forward, vel, 10000, ent, altFire );
+	missile = CreateMissileNew( muzzle, forward, vel, 10000, ent, altFire, qtrue, qtrue );
 
 	if (ent->client && ent->client->ps.rocketLockIndex != MAX_CLIENTS)
 	{
@@ -1765,7 +1892,7 @@ gentity_t *WP_FireThermalDetonator( gentity_t *ent, qboolean altFire )
 	VectorCopy( forward, dir );
 	VectorCopy( muzzle, start );
 
-	bolt = G_Spawn();
+	bolt = G_Spawn(qfalse);
 	
 	bolt->physicsObject = qtrue;
 
@@ -2117,7 +2244,7 @@ void WP_PlaceLaserTrap( gentity_t *ent, qboolean alt_fire )
 	VectorCopy( forward, dir );
 	VectorCopy( muzzle, start );
 
-	laserTrap = G_Spawn();
+	laserTrap = G_Spawn(qfalse);
 	
 	//limit to 10 placed at any one time
 	//see how many there are now
@@ -2339,7 +2466,7 @@ void drop_charge (gentity_t *self, vec3_t start, vec3_t dir)
 
 	VectorNormalize (dir);
 
-	bolt = G_Spawn();
+	bolt = G_Spawn(qfalse);
 	bolt->classname = "detpack";
 	bolt->nextthink = level.time + FRAMETIME;
 	bolt->think = G_RunObject;
@@ -2597,6 +2724,203 @@ void WP_FireStunBaton( gentity_t *ent, qboolean alt_fire )
 	}
 }
 
+//---------------------------------------------------------
+static void WP_FireLightningGun(gentity_t *ent)
+//---------------------------------------------------------
+{
+	int			damage = 4 * jp_weaponDamageScale.value; // LG nerf even though it didnt nead it vs good players.. woop
+	qboolean	render_impact = qtrue;
+	vec3_t		start, end;
+	trace_t		tr;
+	gentity_t	*traceEnt, *tent;
+	float		shotRange = LIGHTNING_RANGE;
+	int			ignore;
+	qboolean	ghoul2 = qfalse;
+
+	if (d_projectileGhoul2Collision.integer)
+		ghoul2 = qtrue;
+
+
+	memset(&tr, 0, sizeof(tr)); //to shut the compiler up
+
+	VectorCopy(ent->client->ps.origin, start);
+	start[2] += ent->client->ps.viewheight;//By eyes - but why???
+	VectorMA(start, shotRange, forward, end);
+
+	VectorMA(start, 1, right, start);
+
+	if (jp_unlagged.integer & UNLAGGED_HITSCAN)
+		G_TimeShiftAllClients(ent->client->pers.cmd.serverTime, ent, ghoul2);
+
+	ignore = ent->s.number;
+
+	/*if (ghoul2)
+		JP_Trace(&tr, start, NULL, NULL, end, ignore, MASK_SHOT, qfalse, G2TRFLAG_DOGHOULTRACE | G2TRFLAG_GETSURFINDEX | G2TRFLAG_THICK | G2TRFLAG_HITCORPSES, g_g2TraceLod.integer);
+	else*/
+		JP_Trace(&tr, start, NULL, NULL, end, ignore, MASK_SHOT, qfalse, 0, 0);
+
+	if (tr.entityNum == ENTITYNUM_NONE)
+	{
+		if (jp_unlagged.integer & UNLAGGED_HITSCAN)
+			G_UnTimeShiftAllClients(ent, ghoul2);
+		return;
+	}
+	//fix: shooting ourselves shouldn't be allowed 
+	if (tr.entityNum == ent->s.number)
+	{
+		if (jp_unlagged.integer & UNLAGGED_HITSCAN)
+			G_UnTimeShiftAllClients(ent, ghoul2);
+		return;
+	}
+
+	traceEnt = &g_entities[tr.entityNum];
+
+	/*if (ghoul2 && traceEnt->inuse && traceEnt->client)
+	{ //g2 collision checks -rww
+		if (traceEnt->inuse && traceEnt->client && traceEnt->ghoul2)
+		{ //since we used G2TRFLAG_GETSURFINDEX, tr.surfaceFlags will actually contain the index of the surface on the ghoul2 model we collided with.
+			traceEnt->client->g2LastSurfaceHit = tr.surfaceFlags;
+			traceEnt->client->g2LastSurfaceTime = level.time;
+		}
+
+		if (traceEnt->ghoul2)
+		{
+			tr.surfaceFlags = 0; //clear the surface flags after, since we actually care about them in here.
+		}
+	}*/
+
+	if (jp_unlagged.integer & UNLAGGED_HITSCAN)
+		G_UnTimeShiftAllClients(ent, ghoul2);
+
+	if (tr.surfaceFlags & SURF_NOIMPACT)
+	{
+		render_impact = qfalse;
+	}
+
+	// always render a shot beam, doing this the old way because I don't much feel like overriding the effect.
+	tent = G_TempEntity(tr.endpos, EV_DISRUPTOR_MAIN_SHOT);
+	VectorCopy(muzzle, tent->s.origin2);
+	tent->s.eventParm = ent->s.number;
+
+	traceEnt = &g_entities[tr.entityNum];
+
+	if (render_impact)
+	{
+		if (tr.entityNum < ENTITYNUM_WORLD && traceEnt->takedamage)
+		{
+			if (traceEnt->client && LogAccuracyHit(traceEnt, ent))
+			{
+				ent->client->accuracy_hits++;
+			}
+
+			if ((jp_tweakWeapons.integer & WT_STUN_HEAL) && !ent->client->ps.duelInProgress)
+				G_Damage(traceEnt, ent, ent, forward, tr.endpos, -damage*0.25, DAMAGE_NO_ARMOR | DAMAGE_NO_KNOCKBACK, MOD_STUN_BATON);
+			else
+				G_Damage(traceEnt, ent, ent, forward, tr.endpos, damage, DAMAGE_NORMAL, MOD_STUN_BATON);
+
+			tent = G_TempEntity(tr.endpos, EV_MISSILE_HIT);
+			tent->s.eventParm = DirToByte(tr.plane.normal);
+			if (traceEnt->client)
+			{
+				tent->s.weapon = 1;
+			}
+		}
+		//else 
+		//{
+		// Hmmm, maybe don't make any marks on things that could break
+		//tent = G_TempEntity( tr.endpos, EV_DISRUPTOR_SNIPER_MISS );
+		//tent->s.eventParm = DirToByte( tr.plane.normal );
+		//tent->s.weapon = 1;
+		//}
+	}
+
+}
+
+//---------------------------------------------------------
+static void WP_FireShockLance(gentity_t *ent)
+//---------------------------------------------------------
+{
+	int			damage = 55 * jp_weaponDamageScale.value;
+	qboolean	render_impact = qtrue;
+	vec3_t		start, end;
+	trace_t		tr;
+	gentity_t	*traceEnt, *tent;
+	float		shotRange = 240;
+	int			ignore;
+
+	memset(&tr, 0, sizeof(tr)); //to shut the compiler up
+
+	VectorCopy(ent->client->ps.origin, start);
+	start[2] += ent->client->ps.viewheight;//By eyes - but why???
+	VectorMA(start, shotRange, forward, end);
+	VectorMA(start, 1, right, start);
+
+	if (jp_unlagged.integer & UNLAGGED_HITSCAN)
+		G_TimeShiftAllClients(ent->client->pers.cmd.serverTime, ent, qfalse);
+
+	ignore = ent->s.number;
+
+	JP_Trace(&tr, start, NULL, NULL, end, ignore, MASK_SHOT, qfalse, 0, 0); //Never use small hitbox for shocklance
+
+	if (tr.entityNum == ENTITYNUM_NONE)
+	{
+		if (jp_unlagged.integer & UNLAGGED_HITSCAN)
+			G_UnTimeShiftAllClients(ent, qfalse);
+		return;
+	}
+	//fix: shooting ourselves shouldn't be allowed 
+	if (tr.entityNum == ent->s.number)
+	{
+		if (jp_unlagged.integer & UNLAGGED_HITSCAN)
+			G_UnTimeShiftAllClients(ent, qfalse);
+		return;
+	}
+
+	traceEnt = &g_entities[tr.entityNum];
+
+	if (jp_unlagged.integer & UNLAGGED_HITSCAN)
+		G_UnTimeShiftAllClients(ent, qfalse);
+
+	if (tr.surfaceFlags & SURF_NOIMPACT)
+	{
+		render_impact = qfalse;
+	}
+
+	// always render a shot beam, doing this the old way because I don't much feel like overriding the effect.
+	tent = G_TempEntity(tr.endpos, EV_DISRUPTOR_MAIN_SHOT);
+	VectorCopy(muzzle, tent->s.origin2);
+	tent->s.eventParm = ent->s.number;
+
+	traceEnt = &g_entities[tr.entityNum];
+
+	if (render_impact)
+	{
+		if (tr.entityNum < ENTITYNUM_WORLD && traceEnt->takedamage)
+		{
+			if (traceEnt->client && LogAccuracyHit(traceEnt, ent))
+			{
+				ent->client->accuracy_hits++;
+			}
+
+			G_Damage(traceEnt, ent, ent, forward, tr.endpos, damage, DAMAGE_NORMAL, MOD_UNKNOWN); //I guess keep this as turblast since MOD_STUN is used for healgun .. and we dont want shocklance to heal :\
+																								   			
+			tent = G_TempEntity(tr.endpos, EV_MISSILE_HIT);
+			tent->s.eventParm = DirToByte(tr.plane.normal);
+			if (traceEnt->client)
+			{
+				tent->s.weapon = 1;
+			}
+		}
+		else
+		{
+			// Hmmm, maybe don't make any marks on things that could break
+			tent = G_TempEntity(tr.endpos, EV_DISRUPTOR_SNIPER_MISS);
+			tent->s.eventParm = DirToByte(tr.plane.normal);
+			tent->s.weapon = 1;
+		}
+	}
+
+}
 
 ////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////
@@ -2706,6 +3030,36 @@ void CalcMuzzlePoint ( gentity_t *ent, vec3_t forward, vec3_t right, vec3_t up, 
 #if 1
 	if (weapontype > WP_NONE && weapontype < WP_NUM_WEAPONS)
 	{	// Use the table to generate the muzzlepoint;
+		if (jp_tweakWeapons.integer & WT_CENTER_MUZZLEPOINT && (ent->client->pers.centerMuzzle || ent->client->sess.raceMode)) //Also centerMuzzle for racemode rocketjump styles
+		{
+			switch (weapontype)
+			{
+			case WP_STUN_BATON:
+			case WP_DISRUPTOR:
+				break;
+			case WP_BRYAR_PISTOL:
+			case WP_BLASTER:
+			case WP_DEMP2:
+			case WP_FLECHETTE:
+				muzzleOffPoint[1] -= 6;
+				muzzleOffPoint[2] += 6;
+				break;
+			case WP_BOWCASTER:
+				muzzleOffPoint[1] -= 2;
+				muzzleOffPoint[2] += 6;
+				break;
+			case WP_REPEATER:
+				muzzleOffPoint[1] -= 4.5;
+				muzzleOffPoint[2] += 6;
+				break;
+			case WP_ROCKET_LAUNCHER:
+				muzzleOffPoint[1] -= 8;
+				muzzleOffPoint[2] += 4;
+				break;
+			default:
+				break;
+			}
+		}
 		{	// Crouching.  Use the add-to-Z method to adjust vertically.
 			VectorMA(muzzlePoint, muzzleOffPoint[0], forward, muzzlePoint);
 			VectorMA(muzzlePoint, muzzleOffPoint[1], right, muzzlePoint);
@@ -2747,6 +3101,8 @@ FireWeapon
 ===============
 */
 void FireWeapon( gentity_t *ent, qboolean altFire ) {
+	int seed = ent->client->pers.cmd.serverTime % 10000;// % 256; //JAPRO seed
+
 	if (ent->client->ps.powerups[PW_QUAD] ) {
 		s_quadFactor = g_quadfactor.value;
 	} else {
@@ -2754,7 +3110,8 @@ void FireWeapon( gentity_t *ent, qboolean altFire ) {
 	}
 
 	// track shots taken for accuracy tracking.  Grapple is not a weapon and gauntet is just not tracked
-	if( ent->s.weapon != WP_SABER && ent->s.weapon != WP_STUN_BATON ) 
+	//if( ent->s.weapon != WP_SABER && ent->s.weapon != WP_STUN_BATON ) 
+	if (ent->s.weapon != WP_SABER && (ent->s.weapon != WP_STUN_BATON || ((jp_tweakWeapons.integer && WT_STUN_LG) || (jp_tweakWeapons.integer && WT_STUN_SHOCKLANCE))))
 	{
 		if( ent->s.weapon == WP_FLECHETTE ) {
 			ent->client->accuracy_shots += altFire ? FLECHETTE_ALT_SHOTS : FLECHETTE_SHOTS;
@@ -2809,7 +3166,12 @@ void FireWeapon( gentity_t *ent, qboolean altFire ) {
 	// fire the specific weapon
 	switch( ent->s.weapon ) {
 	case WP_STUN_BATON:
-		WP_FireStunBaton( ent, altFire );
+		if (jp_tweakWeapons.integer & WT_STUN_LG && !altFire)//JAPRO - Lightning Gun
+			WP_FireLightningGun(ent);
+		else if (jp_tweakWeapons.integer & WT_STUN_SHOCKLANCE && altFire)//JAPRO - Shocklance
+			WP_FireShockLance(ent);
+		else
+			WP_FireStunBaton( ent, altFire );
 		break;
 
 	case WP_SABER:
@@ -2820,7 +3182,7 @@ void FireWeapon( gentity_t *ent, qboolean altFire ) {
 		break;
 
 	case WP_BLASTER:
-		WP_FireBlaster( ent, altFire );
+		WP_FireBlaster( ent, altFire, seed );
 		break;
 
 	case WP_DISRUPTOR:
@@ -2828,11 +3190,11 @@ void FireWeapon( gentity_t *ent, qboolean altFire ) {
 		break;
 
 	case WP_BOWCASTER:
-		WP_FireBowcaster( ent, altFire );
+		WP_FireBowcaster( ent, altFire, seed );
 		break;
 
 	case WP_REPEATER:
-		WP_FireRepeater( ent, altFire );
+		WP_FireRepeater( ent, altFire, seed );
 		break;
 
 	case WP_DEMP2:
@@ -2840,7 +3202,7 @@ void FireWeapon( gentity_t *ent, qboolean altFire ) {
 		break;
 
 	case WP_FLECHETTE:
-		WP_FireFlechette( ent, altFire );
+		WP_FireFlechette( ent, altFire, seed );
 		break;
 
 	case WP_ROCKET_LAUNCHER:
@@ -2895,6 +3257,8 @@ void AnimEntCalcMuzzlePoint ( gentity_t *ent, vec3_t forward, vec3_t right, vec3
 
 void AnimEntFireWeapon( gentity_t *ent, qboolean altFire )
 {
+	int seed = ent->client->pers.cmd.serverTime % 10000;// % 256; //JAPRO seed
+
 	vec3_t modifiedAngles;
 	VectorCopy(ent->s.apos.trBase, modifiedAngles);
 //	modifiedAngles[PITCH] = -modifiedAngles[PITCH];
@@ -2924,7 +3288,7 @@ void AnimEntFireWeapon( gentity_t *ent, qboolean altFire )
 		break;
 
 	case WP_BLASTER:
-		WP_FireBlaster( ent, altFire );
+		WP_FireBlaster( ent, altFire, seed );
 		break;
 
 	case WP_DISRUPTOR:
@@ -2932,11 +3296,11 @@ void AnimEntFireWeapon( gentity_t *ent, qboolean altFire )
 		break;
 
 	case WP_BOWCASTER:
-		WP_FireBowcaster( ent, altFire );
+		WP_FireBowcaster( ent, altFire, seed );
 		break;
 
 	case WP_REPEATER:
-		WP_FireRepeater( ent, altFire );
+		WP_FireRepeater( ent, altFire, seed );
 		break;
 
 	case WP_DEMP2:
@@ -2944,7 +3308,7 @@ void AnimEntFireWeapon( gentity_t *ent, qboolean altFire )
 		break;
 
 	case WP_FLECHETTE:
-		WP_FireFlechette( ent, altFire );
+		WP_FireFlechette( ent, altFire, seed );
 		break;
 
 	case WP_ROCKET_LAUNCHER:

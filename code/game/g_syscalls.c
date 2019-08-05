@@ -120,6 +120,7 @@ void trap_Trace( trace_t *results, const vec3_t start, const vec3_t mins, const 
 	syscall( G_TRACE, results, start, mins, maxs, end, passEntityNum, contentmask, 0, 10 );
 }
 
+
 int trap_PointContents( const vec3_t point, int passEntityNum ) {
 	return syscall( G_POINT_CONTENTS, point, passEntityNum );
 }

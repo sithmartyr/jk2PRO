@@ -1094,3 +1094,44 @@ float JK2_powf ( float x, int y )
 	return r;
 }
 
+char* strtok(char* str, const char* delimiters) {
+	static int pos;
+	static char *s;
+	int i = 0, start = pos, j = 0;
+
+	if (str != NULL)
+		s = str;
+
+	while (s[pos] != '\0') {
+		j = 0;
+		while (delimiters[j] != '\0') {
+			if (s[pos] == delimiters[j]) {
+				s[pos] = '\0';
+				pos = pos + 1;
+				if (s[start] != '\0')
+				{
+					return (&s[start]);
+				}
+				else {
+					start = pos;
+					pos--;
+					break;
+				}
+			}
+			j++;
+		}
+		pos++;
+	}
+	s[pos] = '\0';
+
+	if (s[start] == '\0')
+	{
+		pos = 0;
+		return NULL;
+	}
+	else
+	{
+		return &s[start];
+	}
+}
+

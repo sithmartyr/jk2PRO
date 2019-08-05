@@ -20,6 +20,9 @@ typedef struct {
 gentity_t		g_entities[MAX_GENTITIES];
 gclient_t		g_clients[MAX_CLIENTS];
 
+int	dueltypes[MAX_CLIENTS];//JAPRO - Serverside - Fullforce Duels
+
+
 mvsharedEntity_t	mv_entities[MAX_GENTITIES];
 mvclientSession_t	mv_clientSessions[MAX_CLIENTS];
 
@@ -142,6 +145,43 @@ vmCvar_t	g_submodelWorkaround;
 
 vmCvar_t	g_MVSDK;
 
+// jk2pro
+vmCvar_t	g_g2TraceLod;
+vmCvar_t	d_projectileGhoul2Collision;
+
+vmCvar_t	sv_cheats;
+vmCvar_t	sv_maxTeamSize;
+
+vmCvar_t	jcinfo;
+vmCvar_t	jcinfo2;
+
+vmCvar_t	jp_allowBlackNames;
+vmCvar_t	jp_fullAdminPass;
+vmCvar_t	jp_fullAdminLevel;
+vmCvar_t	jp_fullAdminMsg;
+vmCvar_t	jp_juniorAdminPass;
+vmCvar_t	jp_juniorAdminLevel;
+vmCvar_t	jp_juniorAdminMsg;
+vmCvar_t	jp_duelDistanceLimit;
+vmCvar_t	jp_duelStartHealth;
+vmCvar_t	jp_duelStartArmor;
+vmCvar_t	jp_raceMode;
+vmCvar_t	jp_allowRaceTele;
+vmCvar_t	jp_forceLogin;
+vmCvar_t	jp_tweakVote;
+vmCvar_t	jp_allowNoFollow;
+vmCvar_t	jp_voteTimeout;
+vmCvar_t	jp_voteDelay;
+vmCvar_t	jp_emotesDisable;
+vmCvar_t	jp_tweakWeapons;
+vmCvar_t	jp_weaponDamageScale;
+vmCvar_t	jp_projectileVelocityScale;
+vmCvar_t	jp_selfDamageScale;
+vmCvar_t	jp_projectileInheritance;
+vmCvar_t	jp_fullInheritance;
+vmCvar_t	jp_unlagged;
+vmCvar_t	jp_startingWeapons;
+
 int gDuelist1 = -1;
 int gDuelist2 = -1;
 
@@ -170,7 +210,7 @@ static cvarTable_t		gameCvarTable[] = {
 
 	{ &g_autoMapCycle, "g_autoMapCycle", "0", CVAR_ARCHIVE | CVAR_NORESTART, 0, qtrue },
 	{ &g_dmflags, "dmflags", "0", CVAR_SERVERINFO | CVAR_ARCHIVE, 0, qtrue  },
-	
+
 	{ &g_maxForceRank, "g_maxForceRank", "6", CVAR_SERVERINFO | CVAR_ARCHIVE | CVAR_USERINFO | CVAR_LATCH, 0, qfalse  },
 	{ &g_forceBasedTeams, "g_forceBasedTeams", "0", CVAR_SERVERINFO | CVAR_ARCHIVE | CVAR_USERINFO | CVAR_LATCH, 0, qfalse  },
 	{ &g_privateDuel, "g_privateDuel", "1", CVAR_SERVERINFO | CVAR_ARCHIVE, 0, qtrue  },
@@ -313,6 +353,39 @@ static cvarTable_t		gameCvarTable[] = {
 	{ &g_submodelWorkaround, "g_submodelWorkaround", "0", CVAR_ARCHIVE, 0, qtrue },
 
 	{ &g_MVSDK, "g_MVSDK", MVSDK_VERSION, CVAR_ROM | CVAR_SERVERINFO, 0, qfalse },
+
+	// jk2pro
+	{ &g_g2TraceLod, "g_g2TraceLod", "3", CVAR_ARCHIVE, qtrue },
+	{ &d_projectileGhoul2Collision, "d_projectileGhoul2Collision", "1", CVAR_ARCHIVE, qtrue },
+
+	{ &jcinfo, "jcinfo", "0", CVAR_SERVERINFO | CVAR_ROM, 0, qfalse },
+	{ &jcinfo2, "jcinfo2", "0", CVAR_SERVERINFO | CVAR_ROM, 0, qfalse },
+	{ &jp_allowBlackNames, "jp_allowBlackNames", "0", CVAR_ARCHIVE, 0, qfalse },
+	{ &jp_fullAdminPass, "jp_fullAdminPass", "", CVAR_ARCHIVE, 0, qfalse },
+	{ &jp_fullAdminLevel, "jp_fullAdminLevel", "0", CVAR_ARCHIVE, 0, qfalse },
+	{ &jp_fullAdminMsg, "jp_fullAdminMsg", "", CVAR_ARCHIVE, 0, qfalse },
+	{ &jp_juniorAdminPass, "jp_juniorAdminPass", "", CVAR_ARCHIVE, 0, qfalse },
+	{ &jp_juniorAdminLevel, "jp_juniorAdminLevel", "0", CVAR_ARCHIVE, 0, qfalse },
+	{ &jp_fullAdminMsg, "jp_juniorAdminMsg", "", CVAR_ARCHIVE, 0, qfalse },
+	{ &jp_duelDistanceLimit, "jp_duelDistanceLimit", "0", CVAR_ARCHIVE, 0, qfalse },
+	{ &jp_duelStartHealth, "jp_duelStartHealth", "100", CVAR_ARCHIVE, 0, qfalse },
+	{ &jp_duelStartArmor, "jp_duelStartArmor", "100", CVAR_ARCHIVE, 0, qfalse },
+	{ &jp_raceMode,	"jp_raceMode", "0", CVAR_ARCHIVE, 0, qtrue },
+	{ &jp_allowRaceTele, "jp_allowRaceTele", "0", CVAR_ARCHIVE, qtrue },
+	{ &jp_forceLogin, "jp_forceLogin", "0", CVAR_ARCHIVE, qfalse },
+	{ &jp_tweakVote, "jp_tweakVote", "0", CVAR_ARCHIVE, qtrue },
+	{ &jp_allowNoFollow, "jp_allowNoFollow", "0", CVAR_ARCHIVE, qtrue },
+	{ &jp_voteTimeout, "jp_voteTimeout", "180", CVAR_ARCHIVE, qfalse },
+	{ &jp_voteDelay, "jp_voteDelay", "3000", CVAR_ARCHIVE, qfalse },
+	{ &jp_emotesDisable, "jp_emotesDisable", "0", CVAR_ARCHIVE, qtrue },
+	{ &jp_tweakWeapons, "jp_tweakWeapons", "0", CVAR_ARCHIVE, qtrue },
+	{ &jp_weaponDamageScale, "jp_weaponDamageScale", "1", CVAR_ARCHIVE, qtrue },
+	{ &jp_projectileVelocityScale, "jp_projectileVelocityScale", "1", CVAR_ARCHIVE, qtrue },
+	{ &jp_selfDamageScale, "jp_selfDamageScale", "0.5", CVAR_ARCHIVE, qtrue },
+	{ &jp_projectileInheritance, "jp_projectileInheritance", "0", CVAR_ARCHIVE, qtrue },
+	{ &jp_fullInheritance, "jp_fullInheritance", "0", CVAR_ARCHIVE, qtrue },
+	{ &jp_unlagged, "jp_unlagged", "0", CVAR_ARCHIVE | CVAR_LATCH, qtrue },
+	{ &jp_startingWeapons, "jp_startingWeapons", "8", CVAR_ARCHIVE, qtrue },
 };
 
 // bk001129 - made static to avoid aliasing
@@ -1012,7 +1085,34 @@ void AddTournamentPlayer( void ) {
 	level.warmupTime = -1;
 
 	// set them to free-for-all team
-	SetTeam( &g_entities[ nextInLine - level.clients ], "f" );
+	SetTeam( &g_entities[ nextInLine - level.clients ], "f", qfalse );
+}
+
+/*
+=======================
+AddTournamentQueue
+
+Add client to end of tournament queue
+=======================
+*/
+
+void AddTournamentQueue(gclient_t *client)
+{
+	int index;
+	gclient_t *curclient;
+
+	for (index = 0; index < level.maxclients; index++)
+	{
+		curclient = &level.clients[index];
+
+		if (curclient->pers.connected != CON_DISCONNECTED)
+		{
+			if (curclient == client)
+				curclient->sess.spectatorTime = 0;
+			else if (curclient->sess.sessionTeam == TEAM_SPECTATOR)
+				curclient->sess.spectatorTime++;
+		}
+	}
 }
 
 /*
@@ -1036,7 +1136,7 @@ void RemoveTournamentLoser( void ) {
 	}
 
 	// make them a spectator
-	SetTeam( &g_entities[ clientNum ], "s" );
+	SetTeam( &g_entities[ clientNum ], "s", qfalse );
 }
 
 void RemoveDuelDrawLoser(void)
@@ -1072,11 +1172,11 @@ void RemoveDuelDrawLoser(void)
 
 	if (clFailure != 2)
 	{
-		SetTeam( &g_entities[ level.sortedClients[clFailure] ], "s" );
+		SetTeam( &g_entities[ level.sortedClients[clFailure] ], "s", qfalse );
 	}
 	else
 	{ //we could be more elegant about this, but oh well.
-		SetTeam( &g_entities[ level.sortedClients[1] ], "s" );
+		SetTeam( &g_entities[ level.sortedClients[1] ], "s", qfalse );
 	}
 }
 
@@ -1099,7 +1199,7 @@ void RemoveTournamentWinner( void ) {
 	}
 
 	// make them a spectator
-	SetTeam( &g_entities[ clientNum ], "s" );
+	SetTeam( &g_entities[ clientNum ], "s", qfalse );
 }
 
 /*
@@ -2822,3 +2922,141 @@ void MV_BBoxToTime2( gentity_t *ent )
 	ent->s.time2 = (mins1 << 16) | (mins0 << 8) | maxs1;
 }
 
+/*
+==============================
+saved - used to hold ownerNums
+==============================
+*/
+static int saved[MAX_GENTITIES];
+
+/*
+============================================
+BeginHack
+This abuses ownerNum to allow nonsolid duels
+(used by trace functions)
+============================================
+*/
+static void BeginHack(int entityNum)
+{
+	// since we are in a duel, make everyone else nonsolid
+	if (0 <= entityNum && entityNum < MAX_CLIENTS && level.clients[entityNum].ps.duelInProgress) {
+		int i;
+		for (i = 0; i < level.num_entities; i++) { //This is numentities not max_clients because of NPCS
+			if (i != entityNum && i != level.clients[entityNum].ps.duelIndex) {
+				if (g_entities[i].inuse &&
+					((g_entities[i].s.eType == ET_PLAYER && g_entities[i].s.eType == ET_GENERAL && (!Q_stricmp(g_entities[i].classname, "laserTrap")) || (!Q_stricmp(g_entities[i].classname, "detpack"))))) {
+					saved[i] = g_entities[i].r.ownerNum;
+					g_entities[i].r.ownerNum = entityNum;
+				}
+			}
+		}
+	}
+	else if (g_entities[entityNum].client && g_entities[entityNum].client->sess.raceMode) { //Have to check all entities because swoops can be racemode too :/
+		int i;
+		for (i = 0; i < level.num_entities; i++) { ////This is numentities not max_clients because of NPCS
+			if (i != entityNum) {
+				if (g_entities[i].inuse &&
+					((g_entities[i].s.eType == ET_PLAYER) ||
+					(g_entities[i].s.eType == ET_MOVER && ((!Q_stricmp(g_entities[i].classname, "func_door") || !Q_stricmp(g_entities[i].classname, "func_plat")))) ||
+						(g_entities[i].s.eType == ET_GENERAL && (!Q_stricmp(g_entities[i].classname, "laserTrap")) || (!Q_stricmp(g_entities[i].classname, "detpack")))))
+				{
+					saved[i] = g_entities[i].r.ownerNum;
+					g_entities[i].r.ownerNum = entityNum;
+				}
+			}
+		}
+	}
+	else { // we are not dueling but make those that are nonsolid
+		int i;
+		if (g_entities[entityNum].inuse) {//Saber
+			const int saberOwner = g_entities[entityNum].r.ownerNum;//Saberowner
+			if (g_entities[saberOwner].client && g_entities[saberOwner].client->ps.duelInProgress) {
+				return;
+			}
+		}
+		for (i = 0; i < level.num_entities; i++) { //loda fixme? This should go through all entities... to also account for people lightsabers..? or is that too costly
+			if (i != entityNum) {
+				if (g_entities[i].inuse && g_entities[i].client &&
+					(g_entities[i].client->ps.duelInProgress || g_entities[i].client->sess.raceMode)) { //loda fixme? Or the ent is a saber, and its owner is in racemode or duel in progress
+					saved[i] = g_entities[i].r.ownerNum;
+					g_entities[i].r.ownerNum = entityNum;
+				}
+			}
+		}
+	}
+}
+
+/*
+==========================================
+EndHack
+This cleans up the damage BeginHack caused
+==========================================
+*/
+static void EndHack(int entityNum) { //Should be inline?
+	if (0 <= entityNum && entityNum < MAX_CLIENTS && level.clients[entityNum].ps.duelInProgress) {
+		int i;
+		for (i = 0; i < level.num_entities; i++) {
+			if (i != entityNum && i != level.clients[entityNum].ps.duelIndex) {
+				if (g_entities[i].inuse &&
+					((g_entities[i].s.eType == ET_PLAYER && g_entities[i].s.eType == ET_GENERAL && (!Q_stricmp(g_entities[i].classname, "laserTrap")) || (!Q_stricmp(g_entities[i].classname, "detpack"))))) {
+					g_entities[i].r.ownerNum = saved[i];
+				}
+			}
+		}
+	}
+	else if (g_entities[entityNum].client && g_entities[entityNum].client->sess.raceMode) {
+		int i;
+		for (i = 0; i < level.num_entities; i++) {
+			if (i != entityNum) {
+				if (g_entities[i].inuse &&
+					((g_entities[i].s.eType == ET_PLAYER) ||
+					(g_entities[i].s.eType == ET_MOVER && ((!Q_stricmp(g_entities[i].classname, "func_door") || !Q_stricmp(g_entities[i].classname, "func_plat")))) ||
+						(g_entities[i].s.eType == ET_GENERAL && (!Q_stricmp(g_entities[i].classname, "laserTrap")) || (!Q_stricmp(g_entities[i].classname, "detpack")))))
+				{
+					g_entities[i].r.ownerNum = saved[i];
+				}
+			}
+		}
+	}
+	else {
+		int i;
+		if (g_entities[entityNum].inuse) {//Saber
+			const int saberOwner = g_entities[entityNum].r.ownerNum;//Saberowner
+			if (g_entities[saberOwner].client && g_entities[saberOwner].client->ps.duelInProgress) {
+				return;
+			}
+		}
+		for (i = 0; i < level.num_entities; i++) {
+			if (i != entityNum) {
+				if (g_entities[i].inuse && g_entities[i].client &&
+					(g_entities[i].client->ps.duelInProgress || g_entities[i].client->sess.raceMode)) {
+					g_entities[i].r.ownerNum = saved[i];
+				}
+			}
+		}
+	}
+}
+
+void JP_Trace(trace_t *results, const vec3_t start, const vec3_t mins, const vec3_t maxs, const vec3_t end, int passEntityNum, int contentmask, int capsule, int traceFlags, int useLod) {
+	BeginHack(passEntityNum);
+	trap_Trace(results, start, mins, maxs, end, passEntityNum, contentmask);
+	EndHack(passEntityNum);
+}
+
+const char *G_GetStringEdString(char *refSection, char *refName)
+{
+	/*
+	static char text[1024]={0};
+	trap_SP_GetStringTextString(va("%s_%s", refSection, refName), text, sizeof(text));
+	return text;
+	*/
+
+	//Well, it would've been lovely doing it the above way, but it would mean mixing
+	//languages for the client depending on what the server is. So we'll mark this as
+	//a stringed reference with @@@ and send the refname to the client, and when it goes
+	//to print it will get scanned for the stringed reference indication and dealt with
+	//properly.
+	static char text[1024] = { 0 };
+	Com_sprintf(text, sizeof(text), "@@@%s", refName);
+	return text;
+}

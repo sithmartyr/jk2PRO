@@ -569,6 +569,9 @@ void TossClientWeapon(gentity_t *self, vec3_t direction, float speed)
 	int weapon = self->s.weapon;
 	int ammoSub;
 
+	if ((jp_startingWeapons.integer & (1 << weapon)) && (g_forcePowerDisable.integer & (1 << FP_PULL)) && (jp_tweakWeapons.integer & WT_INFINITE_AMMO))//Dont toss weapon if thers no possible use for it
+		return;
+
 	if (weapon <= WP_BRYAR_PISTOL)
 	{ //can't have this
 		return;
@@ -656,6 +659,9 @@ void TossClientItems( gentity_t *self ) {
 			weapon = WP_NONE;
 		}
 	}
+
+	if ((jp_startingWeapons.integer & (1 << weapon)) && (g_forcePowerDisable.integer & (1 << FP_PULL)) && (jp_tweakWeapons.integer & WT_INFINITE_AMMO))//Dont toss weapon if thers no possible use for it
+		weapon = WP_NONE;
 
 	self->s.bolt2 = weapon;
 
@@ -2620,7 +2626,7 @@ void G_Dismember( gentity_t *ent, vec3_t point, int limbType, float limbRollBase
 	gentity_t *limb;
 
 	VectorCopy( point, newPoint );
-	limb = G_Spawn();
+	limb = G_Spawn(qtrue);
 	limb->classname = "playerlimb";
 	G_SetOrigin( limb, newPoint );
 	VectorCopy( newPoint, limb->s.pos.trBase );
@@ -3031,7 +3037,7 @@ void G_Damage( gentity_t *targ, gentity_t *inflictor, gentity_t *attacker,
 		G_Damage(&g_entities[targ->damageRedirectTo], inflictor, attacker, dir, point, damage, dflags, mod);
 		return;
 	}
-
+	
 	if (!targ->takedamage) {
 		return;
 	}
@@ -3133,6 +3139,10 @@ void G_Damage( gentity_t *targ, gentity_t *inflictor, gentity_t *attacker,
 		{
 			VectorScale (dir, (g_knockback.value * (float)knockback / mass)*g_saberDmgVelocityScale.integer, kvel);
 		}
+		//[JAPRO - Serverside - Weapons - Remove Projectile/disruptor Knockback - Start]
+		else if ((jp_tweakWeapons.integer & WT_PROJECTILE_KNOCKBACK) && (mod == MOD_BLASTER || mod == MOD_BRYAR_PISTOL || mod == MOD_REPEATER || mod == MOD_DISRUPTOR || mod == MOD_DISRUPTOR_SNIPER || mod == MOD_STUN_BATON))
+			VectorScale(dir, 0.01 * g_knockback.value * (float)knockback / mass, kvel);
+		//[JAPRO - Serverside - Weapons - Remove Projectile/disruptor Knockback - End]
 		else
 		{
 			VectorScale (dir, g_knockback.value * (float)knockback / mass, kvel);
@@ -3309,7 +3319,10 @@ void G_Damage( gentity_t *targ, gentity_t *inflictor, gentity_t *attacker,
 	{ //demp2 does full damage to shields, but only 1/3 normal damage to health
 		if (take > 0)
 		{
-			take /= 3;
+			if (jp_tweakWeapons.integer & WT_DEMP2_DAM)
+				take /= 2;
+			else
+				take /= 3;
 			if (take < 1)
 			{
 				take = 1;

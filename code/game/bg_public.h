@@ -154,6 +154,20 @@ typedef enum {
 	GT_MAX_GAME_TYPE
 } gametype_t;
 
+// gametype bits
+#define GTB_NONE			0x000 // invalid
+#define GTB_FFA				0x001 // free for all
+#define GTB_HOLOCRON		0x002 // holocron ffa
+#define GTB_JEDIMASTER		0x004 // jedi master
+#define GTB_TOURNAMENT		0x008 // one on one tournament
+#define GTB_SINGLE_PLAYER	0x010 // single player ffa
+#define GTB_NOTTEAM			0x01F // **SPECIAL: All of the above gametypes, i.e. not team-based
+#define GTB_TEAM			0x020 // team deathmatch
+#define GTB_SAGA			0x040 // siege
+#define GTB_CTF				0x080 // capture the flag
+#define GTB_CTY				0x100 // capture the ysalimiri
+#define GTB_ALL				0x1FF // all
+
 typedef enum { GENDER_MALE, GENDER_FEMALE, GENDER_NEUTER } gender_t;
 
 extern vec3_t WP_MuzzlePoint[WP_NUM_WEAPONS];
@@ -320,7 +334,14 @@ typedef enum {
 	STAT_ARMOR,				
 	STAT_DEAD_YAW,					// look this direction when dead (FIXME: get rid of?)
 	STAT_CLIENTS_READY,				// bit mask of clients wishing to exit the intermission (FIXME: configstring?)
-	STAT_MAX_HEALTH					// health / armor limit, changable by handicap
+	STAT_MAX_HEALTH,				// health / armor limit, changable by handicap
+	STAT_DASHTIME,
+	STAT_LASTJUMPSPEED,
+	STAT_RACEMODE,
+	STAT_RESTRICTIONS,
+	STAT_MOVEMENTSTYLE,
+	STAT_JUMPTIME,
+	STAT_WJTIME
 } statIndex_t;
 
 

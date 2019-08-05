@@ -428,7 +428,7 @@ instead of being removed and recreated, which can cause interpolated
 angles and bad trails.
 =================
 */
-gentity_t *G_Spawn( void ) {
+gentity_t *G_Spawn( qboolean essential ) {
 	int			i, force;
 	gentity_t	*e;
 
@@ -457,7 +457,11 @@ gentity_t *G_Spawn( void ) {
 			break;
 		}
 	}
-	if ( i == ENTITYNUM_MAX_NORMAL )
+	if (!essential && (i > ENTITYNUM_MAX_NORMAL - 8)) { //Just dont spawn the bullet... TODO: add logical entities distinction maybe :/
+		return e;
+	}
+	//if ( i == ENTITYNUM_MAX_NORMAL )
+	if(i > ENTITYNUM_MAX_NORMAL)
 	{
 		gentity_t *found = NULL;
 		if ( g_mv_fixturretcrash.integer )
@@ -667,7 +671,7 @@ gentity_t *G_TempEntity( vec3_t origin, int event ) {
 	gentity_t		*e;
 	vec3_t		snapped;
 
-	e = G_Spawn();
+	e = G_Spawn(qfalse);
 	e->s.eType = ET_EVENTS + event;
 
 	e->classname = "tempEntity";
@@ -717,7 +721,7 @@ gentity_t *G_SoundTempEntity( vec3_t origin, int event, int channel ) {
 	gentity_t		*e;
 	vec3_t		snapped;
 
-	e = G_Spawn();
+	e = G_Spawn(qfalse);
 
 	e->s.eType = ET_EVENTS + event;
 	e->inuse = qtrue;
@@ -1207,4 +1211,3 @@ void G_ROFF_NotetrackCallback( gentity_t *cent, const char *notetrack)
 		trap_ROFF_Play(cent->s.number, cent->roffid, qfalse);
 	}
 }
-

@@ -116,6 +116,90 @@ void TeleportPlayer( gentity_t *player, vec3_t origin, vec3_t angles ) {
 	}
 }
 
+void AmTeleportPlayer(gentity_t *player, vec3_t origin, vec3_t angles, qboolean droptofloor, qboolean race, qboolean toMark) {
+	gentity_t	*tent;
+	qboolean wasNoClip = qfalse;
+	vec3_t neworigin;
+
+	if (!player || !player->client)
+		return;
+	if (BG_InRoll(&player->client->ps, player->s.legsAnim))//is this crashing? if ps is null or something?
+		return;
+
+#if _GRAPPLE
+	if (player->client && player->client->hook)
+		Weapon_HookFree(player->client->hook);
+#endif
+
+	neworigin[0] = origin[0];
+	neworigin[1] = origin[1];
+	neworigin[2] = origin[2];
+
+	if (player->client->noclip)
+		wasNoClip = qtrue;
+
+	player->client->noclip = qtrue;
+	if (!toMark || !(player->client->ps.stats[STAT_RESTRICTIONS] & JAPRO_RESTRICT_ALLOWTELES))
+		//ResetPlayerTimers(player, qtrue);
+	player->client->ps.fd.forceJumpZStart = -65536; //maybe this will fix that annoying overbounce tele shit
+
+	if (droptofloor) {
+		trace_t tr;
+		vec3_t down, mins, maxs;
+		VectorSet(mins, -15, -15, DEFAULT_MINS_2);
+		VectorSet(maxs, 15, 15, DEFAULT_MAXS_2);
+
+		VectorCopy(origin, down);//Drop them to floor so they cant abuse?
+		down[2] -= 32768;
+		JP_Trace(&tr, origin, mins, maxs, down, player->client->ps.clientNum, MASK_PLAYERSOLID, qfalse, 0, 0);
+		neworigin[2] = (int)tr.endpos[2];//Why does it crash without casting to int? wtf
+
+		player->client->lastInStartTrigger = level.time;
+	}
+
+	// use temp events at source and destination to prevent the effect
+	// from getting dropped by a second player event
+	if (player->client->sess.sessionTeam != TEAM_SPECTATOR && !race) {
+		tent = G_TempEntity(player->client->ps.origin, EV_PLAYER_TELEPORT_OUT);
+		tent->s.clientNum = player->s.clientNum;
+
+		tent = G_TempEntity(neworigin, EV_PLAYER_TELEPORT_IN);
+		tent->s.clientNum = player->s.clientNum;
+	}
+
+	// unlink to make sure it can't possibly interfere with G_KillBox
+	trap_UnlinkEntity(player);
+
+
+	VectorCopy(neworigin, player->client->ps.origin);
+	player->client->ps.origin[2] += 8;//Get rid of weird jitteryness after teleporting on ground
+	VectorClear(player->client->ps.velocity);
+
+	// toggle the teleport bit so the client knows to not lerp
+	player->client->ps.eFlags ^= EF_TELEPORT_BIT;
+	G_ResetTrail(player);//unlagged
+
+						 // kill anything at the destination
+	if (player->client->sess.sessionTeam != TEAM_SPECTATOR) {
+		G_KillBox(player);
+	}
+
+	// set angles
+	SetClientViewAngle(player, angles);
+
+	// save results of pmove
+	BG_PlayerStateToEntityState(&player->client->ps, &player->s, qtrue);
+
+	// use the precise origin for linking
+	VectorCopy(player->client->ps.origin, player->r.currentOrigin);
+
+	if (player->client->sess.sessionTeam != TEAM_SPECTATOR) {
+		trap_LinkEntity(player);
+	}
+
+	if (!wasNoClip)
+		player->client->noclip = qfalse;
+}
 
 /*QUAKED misc_teleporter_dest (1 0 0) (-32 -32 -24) (32 32 -16)
 Point teleporters at these.
@@ -1233,7 +1317,7 @@ gentity_t *CreateNewDamageBox( gentity_t *ent )
 
 	//We do not want the client to have any real knowledge of the entity whatsoever. It will only
 	//ever be used on the server.
-	dmgBox = G_Spawn();
+	dmgBox = G_Spawn(qtrue);
 	dmgBox->classname = "dmg_box";
 			
 	dmgBox->r.svFlags = SVF_USE_CURRENT_ORIGIN;
@@ -2813,7 +2897,7 @@ void G_SpawnExampleAnimEnt(vec3_t pos, int aeType, animentCustomInfo_t *aeInfo)
 		}
 	}
 
-	animEnt = G_Spawn();
+	animEnt = G_Spawn(qtrue);
 
 	animEnt->watertype = aeType; //set the animent type
 

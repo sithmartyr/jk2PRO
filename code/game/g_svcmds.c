@@ -153,12 +153,12 @@ qboolean G_FilterPacket (char *from)
 AddIP
 =================
 */
-static void AddIP( char *str )
+void AddIP( char *str )
 {
 	int		i;
 
 	for (i = 0 ; i < numIPFilters ; i++)
-		if (ipFilters[i].compare == 0xffffffff)
+		if (ipFilters[i].compare == 0xffffffffu)
 			break;		// free spot
 	if (i == numIPFilters)
 	{
@@ -357,6 +357,165 @@ gclient_t	*ClientForString( const char *s ) {
 	return NULL;
 }
 
+static int SV_ClientNumberFromString(const char *s)
+{
+	gclient_t	*cl;
+	int			idnum, i, match = -1;
+	char		s2[MAX_STRING_CHARS];
+	char		n2[MAX_STRING_CHARS];
+
+	// numeric values are just slot numbers
+	if (s[0] >= '0' && s[0] <= '9' && strlen(s) == 1) //changed this to only recognize numbers 0-31 as client numbers, otherwise interpret as a name, in which case sanitize2 it and accept partial matches (return error if multiple matches)
+	{
+		idnum = atoi(s);
+		cl = &level.clients[idnum];
+		if (cl->pers.connected != CON_CONNECTED) {
+			Com_Printf("Client '%i' is not active\n", idnum);
+			return -1;
+		}
+		return idnum;
+	}
+
+	else if (s[0] == '1' && s[0] == '2' && (s[1] >= '0' && s[1] <= '9' && strlen(s) == 2))
+	{
+		idnum = atoi(s);
+		cl = &level.clients[idnum];
+		if (cl->pers.connected != CON_CONNECTED) {
+			Com_Printf("Client '%i' is not active\n", idnum);
+			return -1;
+		}
+		return idnum;
+	}
+
+	else if (s[0] == '3' && (s[1] >= '0' && s[1] <= '1' && strlen(s) == 2))
+	{
+		idnum = atoi(s);
+		cl = &level.clients[idnum];
+		if (cl->pers.connected != CON_CONNECTED) {
+			Com_Printf("Client '%i' is not active\n", idnum);
+			return -1;
+		}
+		return idnum;
+	}
+	// check for a name match
+	SanitizeString2(s, s2);
+	for (idnum = 0, cl = level.clients; idnum < level.maxclients; idnum++, cl++) {
+		if (cl->pers.connected != CON_CONNECTED) {
+			continue;
+		}
+		SanitizeString2(cl->pers.netname, n2);
+
+		for (i = 0; i < level.numConnectedClients; i++)
+		{
+			cl = &level.clients[level.sortedClients[i]];
+			SanitizeString2(cl->pers.netname, n2);
+			if (strstr(n2, s2))
+			{
+				if (match != -1)
+				{ //found more than one match
+					Com_Printf("More than one user '%s' on the server\n", s);
+					return -2;
+				}
+				match = level.sortedClients[i];
+			}
+		}
+		if (match != -1)//uhh
+			return match;
+	}
+	Com_Printf("User '%s' is not on the server\n", s);
+	return -1;
+}
+
+void Svcmd_AmKick_f(void) {
+	int clientid = -1;
+	char   arg[MAX_NETNAME];
+
+	if (trap_Argc() != 2) {
+		trap_Printf("Usage: /amKick <client>.\n");
+		return;
+	}
+	trap_Argv(1, arg, sizeof(arg));
+	clientid = SV_ClientNumberFromString(arg);
+
+	if (clientid == -1 || clientid == -2)
+		return;
+	trap_SendConsoleCommand(EXEC_APPEND, va("clientkick %i", clientid));
+
+}
+
+void Svcmd_AmBan_f(void) {
+	int clientid = -1;
+	char   arg[MAX_NETNAME];
+
+	if (trap_Argc() != 2) {
+		trap_Printf("Usage: /amBan <client>.\n");
+		return;
+	}
+	trap_Argv(1, arg, sizeof(arg));
+	clientid = SV_ClientNumberFromString(arg);
+
+	if (clientid == -1 || clientid == -2)
+		return;
+	AddIP(g_entities[clientid].client->sess.IP);
+	trap_SendConsoleCommand(EXEC_APPEND, va("clientkick %i", clientid));
+}
+
+void Svcmd_Amgrantadmin_f(void)
+{
+	char arg[MAX_NETNAME];
+	int clientid = -1;
+
+	if (trap_Argc() != 3) {
+		trap_Printf("Usage: /amGrantAdmin <client> <level>.\n");
+		return;
+	}
+
+	trap_Argv(1, arg, sizeof(arg));
+	clientid = SV_ClientNumberFromString(arg);
+
+	if (clientid == -1 || clientid == -2)
+		return;
+
+	if (!g_entities[clientid].client)
+		return;
+
+	trap_Argv(2, arg, sizeof(arg));
+	Q_strlwr(arg);
+
+	if (!Q_stricmp(arg, "none")) {
+		int i;
+		for (i = 0; i <= JAPRO_MAX_ADMIN_BITS; i++) {//Loop this 0-22 is admin flags.
+			g_entities[clientid].client->sess.accountFlags &= ~(1 << i);
+		}
+	}
+	else if (!Q_stricmp(arg, "junior")) {
+		int i;
+		qboolean added = qfalse;
+		for (i = 0; i <= JAPRO_MAX_ADMIN_BITS; i++) {//Loop this 0-22 is admin flags.
+			if (jp_juniorAdminLevel.integer & (1 << i)) {
+				g_entities[clientid].client->sess.accountFlags |= (1 << i);
+				added = qtrue;
+			}
+		}
+		if (added)
+			trap_SendServerCommand(clientid, "print \"You have been granted Junior admin privileges.\n\"");
+	}
+	else if (!Q_stricmp(arg, "full")) {
+		int i;
+		qboolean added = qfalse;
+		for (i = 0; i <= JAPRO_MAX_ADMIN_BITS; i++) {//Loop this 0-22 is admin flags.
+			if (jp_fullAdminLevel.integer & (1 << i)) {
+				g_entities[clientid].client->sess.accountFlags |= (1 << i);
+				added = qtrue;
+			}
+		}
+		if (added)
+			trap_SendServerCommand(clientid, "print \"You have been granted Full admin privileges.\n\"");
+	}
+}
+
+
+
 /*
 ===================
 Svcmd_ForceTeam_f
@@ -377,7 +536,227 @@ void	Svcmd_ForceTeam_f( void ) {
 
 	// set the team
 	trap_Argv( 2, str, sizeof( str ) );
-	SetTeam( &g_entities[cl - level.clients], str );
+	SetTeam( &g_entities[cl - level.clients], str,  qtrue);
+}
+
+typedef struct bitInfo_S {
+	const char	*string;
+} bitInfo_T;
+
+static bitInfo_T weaponTweaks[] = { // MAX_WEAPON_TWEAKS tweaks (24)
+	//{ "Nonrandom DEMP2" },//1
+	{ "Increased DEMP2 primary damage" },//1
+	{ "Decreased disruptor alt damage" },//2
+	{ "Nonrandom bowcaster spread" },//3
+	{ "Increased repeater alt damage" },//4
+	{ "Nonrandom flechette primary spread" },//5
+	{ "Decreased flechette alt damage" },//6
+	{ "Nonrandom flechette alt spread" },//7
+	//{ "Increased concussion rifle alt damage" },
+	{ "Removed projectile knockback" },//8
+	{ "Stun baton lightning gun" },//9
+	{ "Stun baton shocklance" },//10
+	{ "Projectile gravity" },//11
+	{ "Allow center muzzle" },//12
+	{ "Pseudo random weapon spread" },//13
+	//{ "Rocket alt fire mortar" },//14
+	//{ "Rocket alt fire redeemer" },//15
+	{ "Infinite ammo" },//14
+	{ "Stun baton heal gun" },//15
+	//{ "Weapons can damage vehicles" },
+	//{ "Allow gunroll" },
+	{ "Fast weaponswitch" },//16
+	{ "Impact nitrons" },//17
+	{ "Flechette stake gun" },//18
+	{ "Fix dropped mine ammo count" },//19
+	//{ "JK2 Style Alt Tripmine" },
+	{ "Projectile Sniper" },//20
+	{ "No Spread" },//21
+	{ "Slow sniper fire rate" },//22
+	{ "Make rockets solid for their owners" },//23
+	{ "Lower max damage for pistol alt fire" }//24
+};
+static const int MAX_WEAPON_TWEAKS = ARRAY_LEN(weaponTweaks);
+
+void CVU_TweakWeapons(void) {
+	(jp_tweakWeapons.integer & WT_PSEUDORANDOM_FIRE) ?
+		(jcinfo.integer |= JAPRO_CINFO_PSEUDORANDOM_FIRE) : (jcinfo.integer &= ~JAPRO_CINFO_PSEUDORANDOM_FIRE);
+	(jp_tweakWeapons.integer & WT_STUN_LG) ?
+		(jcinfo.integer |= JAPRO_CINFO_LG) : (jcinfo.integer &= ~JAPRO_CINFO_LG);
+	(jp_tweakWeapons.integer & WT_STUN_SHOCKLANCE) ?
+		(jcinfo.integer |= JAPRO_CINFO_SHOCKLANCE) : (jcinfo.integer &= ~JAPRO_CINFO_SHOCKLANCE);
+	/*(jp_tweakWeapons.integer & WT_ALLOW_GUNROLL) ?
+		(jcinfo.integer |= JAPRO_CINFO_GUNROLL) : (jcinfo.integer &= ~JAPRO_CINFO_GUNROLL);*/
+	(jp_tweakWeapons.integer & WT_PROJ_SNIPER) ?
+		(jcinfo.integer |= JAPRO_CINFO_PROJSNIPER) : (jcinfo.integer &= ~JAPRO_CINFO_PROJSNIPER);
+	trap_Cvar_Set("jcinfo", va("%i", jcinfo.integer));
+}
+
+void GiveClientWeapons(gclient_t *client);
+
+static void RemoveWeaponsFromPlayer(gentity_t *ent) {
+	int disallowedWeaps = g_weaponDisable.integer & ~jp_startingWeapons.integer;
+
+	ent->client->ps.stats[STAT_WEAPONS] &= ~disallowedWeaps; //Subtract disallowed weapons from current weapons.
+
+	if (ent->client->ps.stats[STAT_WEAPONS] <= 0)
+		ent->client->ps.stats[STAT_WEAPONS] = WP_NONE;
+
+	if (!(ent->client->ps.stats[STAT_WEAPONS] & (1 >> ent->client->ps.weapon))) { //If our weapon selected does not appear in our weapons list
+		ent->client->ps.weapon = WP_NONE; //who knows why this does shit even if our current weapon is fine.
+	}
+}
+
+void CVU_StartingWeapons(void) {
+	int i;
+	gentity_t *ent;
+
+	for (i = 0; i < level.numConnectedClients; i++) { //For each player, call removeweapons, and addweapons.
+		ent = &g_entities[level.sortedClients[i]];
+		if (ent->inuse && ent->client && !ent->client->sess.raceMode) {
+			RemoveWeaponsFromPlayer(ent);
+			GiveClientWeapons(ent->client);
+		}
+	}
+}
+
+void Svcmd_ToggleTweakWeapons_f(void) {
+	if (trap_Argc() == 1) {
+		int i = 0;
+		for (i = 0; i < MAX_WEAPON_TWEAKS; i++) {
+			if ((jp_tweakWeapons.integer & (1 << i))) {
+				Com_Printf("%2d [X] %s\n", i, weaponTweaks[i].string);
+			}
+			else {
+				Com_Printf("%2d [ ] %s\n", i, weaponTweaks[i].string);
+			}
+		}
+		return;
+	}
+	else {
+		char arg[8] = { 0 };
+		int index;
+		const uint32_t mask = (1 << MAX_WEAPON_TWEAKS) - 1;
+
+		trap_Argv(1, arg, sizeof(arg));
+		index = atoi(arg);
+
+		if (index < 0 || index >= MAX_WEAPON_TWEAKS) {
+			Com_Printf("tweakWeapons: Invalid range: %i [0, %i]\n", index, MAX_WEAPON_TWEAKS - 1);
+			return;
+		}
+
+		trap_Cvar_Set("jp_tweakWeapons", va("%i", (1 << index) ^ (jp_tweakWeapons.integer & mask)));
+		trap_Cvar_Update(&jp_tweakWeapons);
+
+		Com_Printf("%s %s^7\n", weaponTweaks[index].string, ((jp_tweakWeapons.integer & (1 << index))
+			? "^2Enabled" : "^1Disabled"));
+
+		CVU_TweakWeapons();
+	}
+}
+
+static bitInfo_T adminOptions[] = {
+	{ "Amtele" },//0
+	{ "Amfreeze" },//1
+	{ "Amtelemark" },//2
+	{ "Amban" },//3
+	{ "Amkick" },//4
+	/*{ "NPC" },//5*/
+	{ "Noclip" },//5
+	{ "Grantadmin" },//6
+	{ "Ammap" },//7
+	{ "Ampsay" },//8
+	{ "Amforceteam" },//9
+	{ "Amlockteam" },//10
+	{ "Amvstr" },//11
+	{ "See IPs" },//12
+	{ "Amrename" },//13
+	{ "Amlistmaps" },//14
+	{ "Amwhois" },//15
+	{ "Amlookup" },//16
+	{ "Use hide" },//17
+	{ "See hiders" },//18
+	{ "Callvote" },//19
+	{ "Killvote" },//20
+	{ "Read Amsay" }//21
+};
+static const int MAX_ADMIN_OPTIONS = ARRAY_LEN(adminOptions);
+
+void Svcmd_ToggleAdmin_f(void) {
+	if (trap_Argc() == 1) {
+		trap_Printf("Usage: toggleAdmin <admin level (full or junior)> <admin option>\n");
+		return;
+	}
+	else if (trap_Argc() == 2) {
+		int i, level;
+		char arg1[8] = { 0 };
+
+		trap_Argv(1, arg1, sizeof(arg1));
+		if (!Q_stricmp(arg1, "j") || !Q_stricmp(arg1, "junior"))
+			level = 0;
+		else if (!Q_stricmp(arg1, "f") || !Q_stricmp(arg1, "full"))
+			level = 1;
+		else {
+			Com_Printf("Usage: toggleAdmin <admin level (full or junior)> <admin option>\n");
+			return;
+		}
+
+		for (i = 0; i < MAX_ADMIN_OPTIONS; i++) {
+			if (level == 0) {
+				if ((jp_juniorAdminLevel.integer & (1 << i))) {
+					Com_Printf("%2d [X] %s\n", i, adminOptions[i].string);
+				}
+				else {
+					Com_Printf("%2d [ ] %s\n", i, adminOptions[i].string);
+				}
+			}
+			else if (level == 1) {
+				if ((jp_fullAdminLevel.integer & (1 << i))) {
+					Com_Printf("%2d [X] %s\n", i, adminOptions[i].string);
+				}
+				else {
+					Com_Printf("%2d [ ] %s\n", i, adminOptions[i].string);
+				}
+			}
+		}
+		return;
+	}
+	else {
+		char arg1[8] = { 0 }, arg2[8] = { 0 };
+		int index, level;
+		const uint32_t mask = (1 << MAX_ADMIN_OPTIONS) - 1;
+
+		trap_Argv(1, arg1, sizeof(arg1));
+		if (!Q_stricmp(arg1, "j") || !Q_stricmp(arg1, "junior"))
+			level = 0;
+		else if (!Q_stricmp(arg1, "f") || !Q_stricmp(arg1, "full"))
+			level = 1;
+		else {
+			Com_Printf("Usage: toggleAdmin <admin level (full or junior)> <admin option>\n");
+			return;
+		}
+		trap_Argv(2, arg2, sizeof(arg2));
+		index = atoi(arg2);
+
+		if (index < 0 || index >= MAX_ADMIN_OPTIONS) {
+			Com_Printf("toggleAdmin: Invalid range: %i [0, %i]\n", index, MAX_ADMIN_OPTIONS - 1);
+			return;
+		}
+
+		if (level == 0) {
+			trap_Cvar_Set("jp_juniorAdminLevel", va("%i", (1 << index) ^ (jp_juniorAdminLevel.integer & mask)));
+			trap_Cvar_Update(&jp_juniorAdminLevel);
+
+			Com_Printf("%s %s^7\n", adminOptions[index].string, ((jp_juniorAdminLevel.integer & (1 << index)) ? "^2Enabled" : "^1Disabled"));
+		}
+		else if (level == 1) {
+			trap_Cvar_Set("jp_fullAdminLevel", va("%i", (1 << index) ^ (jp_fullAdminLevel.integer & mask)));
+			trap_Cvar_Update(&jp_fullAdminLevel);
+
+			Com_Printf("%s %s^7\n", adminOptions[index].string, ((jp_fullAdminLevel.integer & (1 << index)) ? "^2Enabled" : "^1Disabled"));
+		}
+	}
 }
 
 char	*ConcatArgs( int start );
@@ -395,6 +774,21 @@ qboolean	ConsoleCommand( void ) {
 
 	if ( Q_stricmp (cmd, "entitylist") == 0 ) {
 		Svcmd_EntityList_f();
+		return qtrue;
+	}
+
+	if (Q_stricmp(cmd, "amkick") == 0) {
+		Svcmd_AmKick_f();
+		return qtrue;
+	}
+
+	if (Q_stricmp(cmd, "amban") == 0) {
+		Svcmd_AmBan_f();
+		return qtrue;
+	}
+
+	if (Q_stricmp(cmd, "amgrantadmin") == 0) {
+		Svcmd_Amgrantadmin_f();
 		return qtrue;
 	}
 
@@ -435,6 +829,16 @@ qboolean	ConsoleCommand( void ) {
 
 	if (Q_stricmp (cmd, "listip") == 0) {
 		trap_SendConsoleCommand( EXEC_NOW, "g_banIPs\n" );
+		return qtrue;
+	}
+
+	if (Q_stricmp(cmd, "toggleadmin") == 0) {
+		Svcmd_ToggleAdmin_f();
+		return qtrue;
+	}
+
+	if (Q_stricmp(cmd, "tweakweapons") == 0) {
+		Svcmd_ToggleTweakWeapons_f();
 		return qtrue;
 	}
 

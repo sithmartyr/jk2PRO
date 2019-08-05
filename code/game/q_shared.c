@@ -48,6 +48,18 @@ const char *GetStringForID( stringID_table_t *table, int id )
 	return NULL;
 }
 
+int Com_Clampi(int min, int max, int value)
+{
+	if (value < min)
+	{
+		return min;
+	}
+	if (value > max)
+	{
+		return max;
+	}
+	return value;
+}
 
 float Com_Clamp( float min, float max, float value ) {
 	if ( value < min ) {
@@ -785,6 +797,11 @@ int Q_isalpha( int c )
 	return ( 0 );
 }
 
+qboolean Q_isintegral(float f)
+{
+	return (qboolean)((int)f == f);
+}
+
 char* Q_strrchr( const char* string, int c )
 {
 	char cc = c;
@@ -968,6 +985,114 @@ char *Q_CleanStr( char *string, qboolean use102color ) {
 	*d = '\0';
 
 	return string;
+}
+
+/*
+==================
+Q_StripColor
+
+Strips coloured strings in-place using multiple passes: "fgs^^56fds" -> "fgs^6fds" -> "fgsfds"
+
+(Also strips ^8 and ^9)
+==================
+*/
+void Q_StripColor(char *text)
+{
+	qboolean doPass = qtrue;
+	char *read;
+	char *write;
+
+	while (doPass)
+	{
+		doPass = qfalse;
+		read = write = text;
+		while (*read)
+		{
+			if (Q_IsColorStringExt(read))
+			{
+				doPass = qtrue;
+				read += 2;
+			}
+			else
+			{
+				// Avoid writing the same data over itself
+				if (write != read)
+				{
+					*write = *read;
+				}
+				write++;
+				read++;
+			}
+		}
+		if (write < read)
+		{
+			// Add trailing NUL byte if string has shortened
+			*write = '\0';
+		}
+	}
+}
+
+/*
+Q_strstrip
+
+Description:	Replace strip[x] in string with repl[x] or remove characters entirely
+Mutates:		string
+Return:			--
+
+Examples:		Q_strstrip( "Bo\nb is h\rairy!!", "\n\r!", "123" );	// "Bo1b is h2airy33"
+Q_strstrip( "Bo\nb is h\rairy!!", "\n\r!", "12" );	// "Bo1b is h2airy"
+Q_strstrip( "Bo\nb is h\rairy!!", "\n\r!", NULL );	// "Bob is hairy"
+*/
+
+void Q_strstrip(char *string, const char *strip, const char *repl)
+{
+	char		*out = string, *p = string, c;
+	const char	*s = strip;
+	int			replaceLen = repl ? strlen(repl) : 0, offset = 0;
+
+	while ((c = *p++) != '\0')
+	{
+		for (s = strip; *s; s++)
+		{
+			offset = s - strip;
+			if (c == *s)
+			{
+				if (!repl || offset >= replaceLen)
+					c = *p++;
+				else
+					c = repl[offset];
+				break;
+			}
+		}
+		*out++ = c;
+	}
+	*out = '\0';
+}
+
+/*
+Q_strchrs
+
+Description:	Find any characters in a string. Think of it as a shorthand strchr loop.
+Mutates:		--
+Return:			first instance of any characters found
+otherwise NULL
+*/
+
+const char *Q_strchrs(const char *string, const char *search)
+{
+	const char *p = string, *s = search;
+
+	while (*p != '\0')
+	{
+		for (s = search; *s; s++)
+		{
+			if (*p == *s)
+				return p;
+		}
+		p++;
+	}
+
+	return NULL;
 }
 
 
@@ -1366,6 +1491,24 @@ int Q_irand(int value1, int value2)
 	r += value1;
 	
 	return r;
+}
+
+void *bsearch(const void *key, const void *base, size_t num, size_t size, int(*cmp)(const void *key, const void *elt)) {
+	size_t start = 0, end = num;
+	int result;
+
+	while (start < end) {
+		size_t mid = start + (end - start) / 2;
+
+		result = (int)cmp(key, &base + mid * size);
+		//result = Q_s
+		if (result < 0)
+			end = mid;
+		else if (result > 0)
+			start = mid + 1;
+		else
+			return &base + mid * size;
+	}
 }
 
 //====================================================================

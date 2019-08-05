@@ -146,7 +146,7 @@ void WP_SaberInitBladeData( gentity_t *ent )
 
 	//We do not want the client to have any real knowledge of the entity whatsoever. It will only
 	//ever be used on the server.
-	saberent = G_Spawn();
+	saberent = G_Spawn(qtrue);
 	ent->client->ps.saberEntityNum = saberent->s.number;
 	saberent->classname = "lightsaber";
 			
@@ -2973,7 +2973,7 @@ void MakeDeadSaber(gentity_t *ent)
 		return;
 	}
 
-	saberent = G_Spawn();
+	saberent = G_Spawn(qtrue);
 
 	VectorCopy(ent->r.currentOrigin, startorg);
 	VectorCopy(ent->r.currentAngles, startang);

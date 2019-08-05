@@ -3112,7 +3112,10 @@ static qboolean PM_DoChargedWeapons( void )
 			{
 				if (pm->ps->weaponChargeSubtractTime < pm->cmd.serverTime)
 				{
-					pm->ps->ammo[weaponData[pm->ps->weapon].ammoIndex] -= weaponData[pm->ps->weapon].altChargeSub;
+#ifdef JK2_GAME
+					if (!pm->ps->stats[STAT_RACEMODE] && !(jp_tweakWeapons.integer & WT_INFINITE_AMMO))
+#endif
+						pm->ps->ammo[weaponData[pm->ps->weapon].ammoIndex] -= weaponData[pm->ps->weapon].altChargeSub;
 					pm->ps->weaponChargeSubtractTime = pm->cmd.serverTime + weaponData[pm->ps->weapon].altChargeSubTime;
 				}
 			}
@@ -3142,7 +3145,10 @@ static qboolean PM_DoChargedWeapons( void )
 			{
 				if (pm->ps->weaponChargeSubtractTime < pm->cmd.serverTime)
 				{
-					pm->ps->ammo[weaponData[pm->ps->weapon].ammoIndex] -= weaponData[pm->ps->weapon].chargeSub;
+#ifdef JK2_GAME
+					if (!pm->ps->stats[STAT_RACEMODE] && !(jp_tweakWeapons.integer & WT_INFINITE_AMMO))
+#endif
+						pm->ps->ammo[weaponData[pm->ps->weapon].ammoIndex] -= weaponData[pm->ps->weapon].chargeSub;
 					pm->ps->weaponChargeSubtractTime = pm->cmd.serverTime + weaponData[pm->ps->weapon].chargeSubTime;
 				}
 			}
@@ -3666,12 +3672,21 @@ static void PM_Weapon( void )
 			pm->ps->stats[STAT_WEAPONS] = (1 << WP_SABER);
 		}
 	}
-
-	amount = weaponData[pm->ps->weapon].energyPerShot;
+#ifdef JK2_GAME
+	if (jp_tweakWeapons.integer & WT_INFINITE_AMMO)
+		amount = 0;
+	else if (pm->ps->weapon == WP_FLECHETTE && jp_tweakWeapons.integer & WT_STAKE_GUN)
+		amount = 10;//5 ammo per stake? eh
+	else
+#endif
+		amount = weaponData[pm->ps->weapon].energyPerShot;
 
 	// take an ammo away if not infinite
 	if ( pm->ps->weapon != WP_NONE &&
 		pm->ps->weapon == pm->cmd.weapon &&
+#ifdef JK2_GAME
+		!(jp_tweakWeapons.integer & WT_INFINITE_AMMO) &&
+#endif
 		(pm->ps->weaponTime <= 0 || pm->ps->weaponstate != WEAPON_FIRING) )
 	{
 		if ( pm->ps->ammo[ weaponData[pm->ps->weapon].ammoIndex ] != -1 )
@@ -3821,7 +3836,12 @@ static void PM_Weapon( void )
 
 	if ( pm->cmd.buttons & BUTTON_ALT_ATTACK )
 	{
-		amount = weaponData[pm->ps->weapon].altEnergyPerShot;
+#ifdef JK2_GAME
+		if (jp_tweakWeapons.integer & WT_INFINITE_AMMO)
+			amount = 0;
+		else
+#endif
+			amount = weaponData[pm->ps->weapon].altEnergyPerShot;
 	}
 	else
 	{

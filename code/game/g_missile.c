@@ -266,7 +266,7 @@ void G_BounceProjectile( vec3_t start, vec3_t impact, vec3_t dir, vec3_t endout 
 	VectorMA(impact, 8192, newv, endout);
 }
 
-
+/*
 //-----------------------------------------------------------------------------
 gentity_t *CreateMissile( vec3_t org, vec3_t dir, float vel, int life, 
 							gentity_t *owner, qboolean altFire)
@@ -300,6 +300,74 @@ gentity_t *CreateMissile( vec3_t org, vec3_t dir, float vel, int life,
 
 	return missile;
 }
+*/
+//[JAPRO - Serverside - Weapons - Add missile inheritance function - Start]
+//-----------------------------------------------------------------------------
+gentity_t *CreateMissileNew(vec3_t org, vec3_t dir, float vel, int life, gentity_t *owner, qboolean altFire, qboolean inheritance, qboolean unlagged)
+//-----------------------------------------------------------------------------
+{
+	gentity_t	*missile;
+	float newVel = vel;
+	vec3_t newDir;
+
+	VectorCopy(dir, newDir);
+
+	missile = G_Spawn(qfalse);
+
+	missile->nextthink = level.time + life;
+	missile->think = G_FreeEntity;
+	missile->s.eType = ET_MISSILE;
+	missile->r.svFlags = SVF_USE_CURRENT_ORIGIN;
+	missile->parent = owner;
+	missile->r.ownerNum = owner->s.number;
+
+	//japro - do this so clients can know who the missile belongs to.. so they can hide it if its from another dimension
+	missile->s.owner = owner->s.number;
+	//
+
+	if (altFire)
+		missile->s.eFlags |= EF_ALT_FIRING;
+
+	missile->s.pos.trType = TR_LINEAR;
+
+	if (owner->client && owner->client->sess.raceMode) {
+		missile->s.pos.trTime = level.time - MISSILE_PRESTEP_TIME;//this be why rocketjump fucks up at high speed
+	}
+	else if (jp_unlagged.integer & UNLAGGED_PROJ_NUDGE && owner->client) {
+		int amount = owner->client->ps.ping * 0.9;
+
+		if (amount > 135)
+			amount = 135;
+		else if (amount < 0) //dunno
+			amount = 0;
+
+		missile->s.pos.trTime = level.time - amount; //fixmer;
+	}
+	else {
+		missile->s.pos.trTime = level.time;// - MISSILE_PRESTEP_TIME;	// NOTENOTE This is a Quake 3 addition over JK2 - do unlagged stuff here?
+	}
+
+	missile->target_ent = NULL;
+
+	SnapVector(org);
+	VectorCopy(org, missile->s.pos.trBase);
+
+	if (inheritance && owner->client) {
+		if (jp_fullInheritance.integer) {
+			VectorMA(newDir, jp_projectileInheritance.value / vel, owner->client->ps.velocity, newDir);
+		}
+		else {
+			newVel = newVel + DotProduct(newDir, owner->client->ps.velocity)*jp_projectileInheritance.value;
+		}
+	}
+
+	VectorScale(newDir, newVel, missile->s.pos.trDelta);
+	VectorCopy(org, missile->r.currentOrigin);
+	SnapVector(missile->s.pos.trDelta);
+
+	return missile;
+}
+//[JAPRO - Serverside - Weapons - Add missile inheritance function - End]
 
 
 /*

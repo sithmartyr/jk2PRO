@@ -228,6 +228,8 @@ typedef int		clipHandle_t;
 
 #define G2_COLLISION_ENABLED
 
+#define NULL_FILE ((fileHandle_t)0)
+
 #ifndef NULL
 #define NULL ((void *)0)
 #endif
@@ -255,6 +257,13 @@ typedef int		clipHandle_t;
 #define	BIG_INFO_KEY		  8192
 #define	BIG_INFO_VALUE		8192
 
+#define NET_ADDRSTRMAXLEN 48 // maximum length of an IPv6 address string including trailing '\0'
+
+// moved these from ui_local.h so we can access them everywhere
+#define MAX_ADDRESSLENGTH		256//64
+#define MAX_HOSTNAMELENGTH		256//22
+#define MAX_MAPNAMELENGTH		256//16
+#define MAX_STATUSLENGTH		256//64
 
 #define	MAX_QPATH			64		// max length of a quake game pathname
 #ifdef PATH_MAX
@@ -611,7 +620,10 @@ extern	vec4_t		colorDkBlue;
 #define Q_COLOR_ESCAPE	'^'
 // you MUST have the last bit on here about colour strings being less than 7 or taiwanese strings register as colour!!!!
 #define Q_IsColorString(p)	( p && *(p) == Q_COLOR_ESCAPE && *((p)+1) && *((p)+1) != Q_COLOR_ESCAPE && *((p)+1) <= '7' && *((p)+1) >= '0' )
+// Correct version of the above for Q_StripColor
+#define Q_IsColorStringExt(p)	((p) && *(p) == Q_COLOR_ESCAPE && *((p)+1) && *((p)+1) >= '0' && *((p)+1) <= '9') // ^[0-9]
 #define Q_IsColorString_1_02(p)	( p && *(p) == Q_COLOR_ESCAPE && *((p)+1) && *((p)+1) != Q_COLOR_ESCAPE ) // 1.02 ColorStrings
+
 
 
 #define COLOR_BLACK		'0'
@@ -2085,6 +2097,8 @@ typedef enum _flag_status {
 #define SAY_ALL		0
 #define SAY_TEAM	1
 #define SAY_TELL	2
+#define	SAY_CLAN	3
+#define	SAY_ADMIN	4
 
 #define CDKEY_LEN 16
 #define CDCHKSUM_LEN 2

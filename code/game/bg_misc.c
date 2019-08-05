@@ -2614,3 +2614,21 @@ void BG_G2PlayerAngles( vec3_t startAngles, vec3_t legs[3], vec3_t legsAngles, i
 //g2r	trap_G2API_SetBoneAngles(ghoul2, 0, "cranium", headAngles, BONE_ANGLES_POSTMULT, POSITIVE_Z, NEGATIVE_Y, POSITIVE_X, modelList,0, currentTime); 
 
 }
+
+int BG_GetGametypeForString(const char *gametype)
+{
+	if (!Q_stricmp(gametype, "ffa")
+		|| !Q_stricmp(gametype, "dm"))			return GT_FFA;
+	else if (!Q_stricmp(gametype, "holocron"))		return GT_HOLOCRON;
+	else if (!Q_stricmp(gametype, "jm"))			return GT_JEDIMASTER;
+	else if (!Q_stricmp(gametype, "duel"))			return GT_TOURNAMENT;
+	else if (!Q_stricmp(gametype, "sp")
+		|| !Q_stricmp(gametype, "coop"))			return GT_SINGLE_PLAYER;
+	else if (!Q_stricmp(gametype, "tdm")
+		|| !Q_stricmp(gametype, "tffa")
+		|| !Q_stricmp(gametype, "team"))			return GT_TEAM;
+	/*else if (!Q_stricmp(gametype, "saga"))			return GT_SAGA;*/
+	else if (!Q_stricmp(gametype, "ctf"))			return GT_CTF;
+	else if (!Q_stricmp(gametype, "cty"))			return GT_CTY;
+	else												return -1;
+}

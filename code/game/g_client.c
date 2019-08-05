@@ -609,7 +609,7 @@ void InitBodyQue (void) {
 
 	level.bodyQueIndex = 0;
 	for (i=0; i<BODY_QUEUE_SIZE ; i++) {
-		ent = G_Spawn();
+		ent = G_Spawn(qtrue);
 		ent->classname = "bodyque";
 		ent->neverFree = qtrue;
 		level.bodyQue[i] = ent;
@@ -761,6 +761,37 @@ void SetClientViewAngle( gentity_t *ent, vec3_t angle ) {
 	}
 	VectorCopy( angle, ent->s.angles );
 	VectorCopy (ent->s.angles, ent->client->ps.viewangles);
+}
+
+void MaintainBodyQueue(gentity_t *ent)
+{ //do whatever should be done taking ragdoll and dismemberment states into account.
+	qboolean doRCG = qfalse;
+
+	assert(ent && ent->client);
+	if (ent->client->tempSpectate > level.time /*||
+		(ent->client->ps.eFlags2 & EF2_SHIP_DEATH)*/)
+	{
+		ent->client->noCorpse = qtrue;
+	}
+
+	if (!ent->client->noCorpse && !ent->client->ps.fallingToDeath)
+	{
+		/*if (!CopyToBodyQue(ent))
+		{*/
+			doRCG = qtrue;
+		//}
+	}
+	else
+	{
+		ent->client->noCorpse = qfalse; //clear it for next time
+		ent->client->ps.fallingToDeath = qfalse;
+		doRCG = qtrue;
+	}
+
+	if (doRCG)
+	{ //bodyque func didn't manage to call ircg so call this to assure our limbs and ragdoll states are proper on the client.
+		trap_SendServerCommand(-1, va("rcg %i", ent->s.clientNum));
+	}
 }
 
 /*
@@ -924,7 +955,7 @@ static void ClientCleanName( const char *in, char *out, int outSize ) {
 			}
 
 			// don't allow black in a name, period
-			if( ColorIndex(*in) == 0 ) {
+			if( ColorIndex(*in) == 0 && !jp_allowBlackNames.integer ) {
 				in++;
 				continue;
 			}
@@ -1722,6 +1753,88 @@ static qboolean AllForceDisabled(int force)
 	return qfalse;
 }
 
+void GiveClientWeapons(gclient_t *client) {
+
+	if (client->ps.stats[STAT_WEAPONS] & (1 << WP_SABER))
+		client->ps.stats[STAT_WEAPONS] = (1 << WP_SABER);
+	else
+		client->ps.stats[STAT_WEAPONS] = 0;
+
+	client->ps.ammo[AMMO_BLASTER] = 0;
+	client->ps.ammo[AMMO_POWERCELL] = 0;
+	client->ps.ammo[AMMO_METAL_BOLTS] = 0;
+	client->ps.ammo[AMMO_ROCKETS] = 0;
+	client->ps.ammo[AMMO_DETPACK] = 0;
+	client->ps.ammo[AMMO_TRIPMINE] = 0;
+	client->ps.ammo[AMMO_THERMAL] = 0;
+
+	//I guess this could be cleaned up a ton, but that trusts the user to not put a retarded value for jp_startingWeapons ?
+
+	if (jp_startingWeapons.integer & (1 << WP_STUN_BATON))
+		client->ps.stats[STAT_WEAPONS] |= (1 << WP_STUN_BATON);
+	/*if (jp_startingWeapons.integer & (1 << WP_MELEE))
+		client->ps.stats[STAT_WEAPONS] |= (1 << WP_MELEE);*/
+	if (jp_startingWeapons.integer & (1 << WP_BRYAR_PISTOL))
+		client->ps.stats[STAT_WEAPONS] |= (1 << WP_BRYAR_PISTOL);
+	if (jp_startingWeapons.integer & (1 << WP_BLASTER))
+		client->ps.stats[STAT_WEAPONS] |= (1 << WP_BLASTER);
+	if (jp_startingWeapons.integer & (1 << WP_DISRUPTOR))
+		client->ps.stats[STAT_WEAPONS] |= (1 << WP_DISRUPTOR);
+	if (jp_startingWeapons.integer & (1 << WP_BOWCASTER))
+		client->ps.stats[STAT_WEAPONS] |= (1 << WP_BOWCASTER);
+	if (jp_startingWeapons.integer & (1 << WP_REPEATER))
+		client->ps.stats[STAT_WEAPONS] |= (1 << WP_REPEATER);
+	if (jp_startingWeapons.integer & (1 << WP_DEMP2))
+		client->ps.stats[STAT_WEAPONS] |= (1 << WP_DEMP2);
+	if (jp_startingWeapons.integer & (1 << WP_FLECHETTE))
+		client->ps.stats[STAT_WEAPONS] |= (1 << WP_FLECHETTE);
+	if (jp_startingWeapons.integer & (1 << WP_ROCKET_LAUNCHER))
+		client->ps.stats[STAT_WEAPONS] |= (1 << WP_ROCKET_LAUNCHER);
+	/*if (jp_startingWeapons.integer & (1 << WP_CONCUSSION))
+		client->ps.stats[STAT_WEAPONS] |= (1 << WP_CONCUSSION);*/
+	if (jp_startingWeapons.integer & (1 << WP_THERMAL))
+		client->ps.stats[STAT_WEAPONS] |= (1 << WP_THERMAL);
+	if (jp_startingWeapons.integer & (1 << WP_TRIP_MINE))
+		client->ps.stats[STAT_WEAPONS] |= (1 << WP_TRIP_MINE);
+	if (jp_startingWeapons.integer & (1 << WP_DET_PACK))
+		client->ps.stats[STAT_WEAPONS] |= (1 << WP_DET_PACK);
+	/*if (jp_startingWeapons.integer & (1 << WP_BRYAR_OLD))
+		client->ps.stats[STAT_WEAPONS] |= (1 << WP_BRYAR_OLD);*/
+
+	if (!(jp_startingWeapons.integer & (1 << 0))) { //oh right, startingWeapons bit 1 gives more ammo
+		/*if (jp_startingWeapons.integer & (1 << WP_BLASTER) || jp_startingWeapons.integer & (1 << WP_BRYAR_OLD))
+			client->ps.ammo[AMMO_BLASTER] = 300;*/
+		if (jp_startingWeapons.integer & (1 << WP_DISRUPTOR) || jp_startingWeapons.integer & (1 << WP_BOWCASTER) || jp_startingWeapons.integer & (1 << WP_DEMP2))
+			client->ps.ammo[AMMO_POWERCELL] = 200;
+		/*if (jp_startingWeapons.integer & (1 << WP_REPEATER) || jp_startingWeapons.integer & (1 << WP_FLECHETTE) || jp_startingWeapons.integer & (1 << WP_CONCUSSION))
+			client->ps.ammo[AMMO_METAL_BOLTS] = 200;*/
+		if (jp_startingWeapons.integer & (1 << WP_ROCKET_LAUNCHER))
+			client->ps.ammo[AMMO_ROCKETS] = 2;
+		if (jp_startingWeapons.integer & (1 << WP_DET_PACK))
+			client->ps.ammo[AMMO_DETPACK] = 1;
+		if (jp_startingWeapons.integer & (1 << WP_TRIP_MINE))
+			client->ps.ammo[AMMO_TRIPMINE] = 1;
+		if (jp_startingWeapons.integer & (1 << WP_THERMAL))
+			client->ps.ammo[AMMO_THERMAL] = 1;
+	}
+	else {
+		/*if (jp_startingWeapons.integer & (1 << WP_BLASTER) || jp_startingWeapons.integer & (1 << WP_BRYAR_OLD))
+			client->ps.ammo[AMMO_BLASTER] = 600;*/
+		if (jp_startingWeapons.integer & (1 << WP_DISRUPTOR) || jp_startingWeapons.integer & (1 << WP_BOWCASTER) || jp_startingWeapons.integer & (1 << WP_DEMP2))
+			client->ps.ammo[AMMO_POWERCELL] = 600;
+		/*if (jp_startingWeapons.integer & (1 << WP_REPEATER) || jp_startingWeapons.integer & (1 << WP_FLECHETTE) || jp_startingWeapons.integer & (1 << WP_CONCUSSION))
+			client->ps.ammo[AMMO_METAL_BOLTS] = 600;*/
+		if (jp_startingWeapons.integer & (1 << WP_ROCKET_LAUNCHER))
+			client->ps.ammo[AMMO_ROCKETS] = 25;
+		if (jp_startingWeapons.integer & (1 << WP_DET_PACK))
+			client->ps.ammo[AMMO_DETPACK] = 10;
+		if (jp_startingWeapons.integer & (1 << WP_TRIP_MINE))
+			client->ps.ammo[AMMO_TRIPMINE] = 10;
+		if (jp_startingWeapons.integer & (1 << WP_THERMAL))
+			client->ps.ammo[AMMO_THERMAL] = 10;
+	}
+}
+
 /*
 ===========
 ClientSpawn
@@ -2016,7 +2129,7 @@ void ClientSpawn(gentity_t *ent) {
 					{//using force but not on right team, switch him over
 						const char *teamName = TeamName( forceTeam );
 						//client->sess.sessionTeam = forceTeam;
-						SetTeam( ent, (char *)teamName );
+						SetTeam( ent, (char *)teamName, qfalse );
 						return;
 					}
 				}
@@ -2254,6 +2367,46 @@ call trap_DropClient(), which will call this and do
 server system housekeeping.
 ============
 */
+
+void G_ClearVote(gentity_t *ent) {
+	if (level.voteTime) {
+		if (ent->client->mGameFlags & PSG_VOTED) {
+			if (ent->client->pers.vote == 1) {
+				level.voteYes--;
+				trap_SetConfigstring(CS_VOTE_YES, va("%i", level.voteYes));
+			}
+			else if (ent->client->pers.vote == 2) {
+				level.voteNo--;
+				trap_SetConfigstring(CS_VOTE_NO, va("%i", level.voteNo));
+			}
+		}
+		ent->client->mGameFlags &= ~(PSG_VOTED);
+		ent->client->pers.vote = 0;
+	}
+}
+void G_ClearTeamVote(gentity_t *ent, int team) {
+	int voteteam;
+
+	if (team == TEAM_RED)	voteteam = 0;
+	else if (team == TEAM_BLUE)	voteteam = 1;
+	else							return;
+
+	if (level.teamVoteTime[voteteam]) {
+		if (ent->client->mGameFlags & PSG_TEAMVOTED) {
+			if (ent->client->pers.teamvote == 1) {
+				level.teamVoteYes[voteteam]--;
+				trap_SetConfigstring(CS_TEAMVOTE_YES, va("%i", level.teamVoteYes[voteteam]));
+			}
+			else if (ent->client->pers.teamvote == 2) {
+				level.teamVoteNo[voteteam]--;
+				trap_SetConfigstring(CS_TEAMVOTE_NO, va("%i", level.teamVoteNo[voteteam]));
+			}
+		}
+		ent->client->mGameFlags &= ~(PSG_TEAMVOTED);
+		ent->client->pers.teamvote = 0;
+	}
+}
+
 void ClientDisconnect( int clientNum ) {
 	gentity_t	*ent;
 	gentity_t	*tent;
