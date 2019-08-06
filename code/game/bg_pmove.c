@@ -2932,7 +2932,19 @@ void PM_FinishWeaponChange( void ) {
 	}
 	pm->ps->weapon = weapon;
 	pm->ps->weaponstate = WEAPON_RAISING;
+#ifdef JK2_GAME
+	/*if (!pm->ps->stats[STAT_RACEMODE] && (jp_tweakSaber.integer & ST_FIXED_SABERSWITCH) && weapon == WP_SABER) {//fix saber switch glitch if we want
+		pm->ps->weaponTime += 1250;
+		((gentity_t *)pm_entSelf)->client->saberDelayCount += 1000; //Ait.. this is the delay past 250 that is added, we wil subract this from weapontime later when checking forcepower use
+																	//saberDelay can never be negative. Saber delay can never be more than weapontime-250.
+	}
+	else */if (!pm->ps->stats[STAT_RACEMODE] && (jp_tweakWeapons.integer & WT_FAST_WEAPONSWITCH))
+		pm->ps->weaponTime += 25;
+	else
+		pm->ps->weaponTime += 250;
+#else
 	pm->ps->weaponTime += 250;
+#endif
 }
 
 
@@ -3390,8 +3402,14 @@ static void PM_Weapon( void )
 		//we now go into a weapon raise anim after every force hand extend.
 		//this is so that my holster-view-weapon-when-hand-extend stuff works.
 		pm->ps->weaponstate = WEAPON_RAISING;
+#ifdef JK2_GAME
+		if (!pm->ps->stats[STAT_RACEMODE] && (jp_tweakWeapons.integer & WT_FAST_WEAPONSWITCH))
+			pm->ps->weaponTime += 25;
+		else
+			pm->ps->weaponTime += 250;
+#else
 		pm->ps->weaponTime += 250;
-
+#endif
 		pm->ps->forceHandExtend = HANDEXTEND_NONE;
 	}
 	else if (pm->ps->forceHandExtend != HANDEXTEND_NONE)
@@ -3693,7 +3711,11 @@ static void PM_Weapon( void )
 		{
 			// enough energy to fire this weapon?
 			if (pm->ps->ammo[weaponData[pm->ps->weapon].ammoIndex] < weaponData[pm->ps->weapon].energyPerShot &&
-				pm->ps->ammo[weaponData[pm->ps->weapon].ammoIndex] < weaponData[pm->ps->weapon].altEnergyPerShot) 
+				pm->ps->ammo[weaponData[pm->ps->weapon].ammoIndex] < weaponData[pm->ps->weapon].altEnergyPerShot
+#ifdef JK2_GAME 
+				&& (!(jp_tweakWeapons.integer & WT_STAKE_GUN) || (pm->ps->weapon != WP_FLECHETTE)) //I guess we have to make the stake gun 
+#endif
+				)
 			{ //the weapon is out of ammo essentially because it cannot fire primary or secondary, so do the switch
 			  //regardless of if the player is attacking or not
 				PM_AddEventWithParm( EV_NOAMMO, WP_NUM_WEAPONS+pm->ps->weapon );
@@ -3839,13 +3861,24 @@ static void PM_Weapon( void )
 #ifdef JK2_GAME
 		if (jp_tweakWeapons.integer & WT_INFINITE_AMMO)
 			amount = 0;
+		/*else if (pm->ps->weapon == WP_ROCKET_LAUNCHER && (jp_tweakWeapons.integer & WT_ROCKET_MORTAR) && !pm->ps->stats[STAT_RACEMODE])
+			amount = 1;//JAPRO mortar meh*/
+		else if (pm->ps->weapon == WP_FLECHETTE && jp_tweakWeapons.integer & WT_STAKE_GUN)
+			amount = 0;//Detonating stakes shouldnt take ammo
 		else
 #endif
 			amount = weaponData[pm->ps->weapon].altEnergyPerShot;
 	}
 	else
 	{
-		amount = weaponData[pm->ps->weapon].energyPerShot;
+#ifdef JK2_GAME
+		if (jp_tweakWeapons.integer & WT_INFINITE_AMMO)
+			amount = 0;
+		else if (pm->ps->weapon == WP_FLECHETTE && jp_tweakWeapons.integer & WT_STAKE_GUN)
+			amount = 10;//5 ammo per stake? eh
+		else
+#endif
+			amount = weaponData[pm->ps->weapon].energyPerShot;
 	}
 
 	pm->ps->weaponstate = WEAPON_FIRING;
@@ -3861,7 +3894,11 @@ static void PM_Weapon( void )
 		else	// Not enough energy
 		{
 			// Switch weapons
+#ifdef JK2_GAME
+			if ((pm->ps->weapon != WP_DET_PACK || !pm->ps->hasDetPackPlanted) && (pm->ps->weapon != WP_FLECHETTE || !(jp_tweakWeapons.integer & WT_STAKE_GUN)))
+#else
 			if (pm->ps->weapon != WP_DET_PACK || !pm->ps->hasDetPackPlanted)
+#endif
 			{
 				PM_AddEventWithParm( EV_NOAMMO, WP_NUM_WEAPONS+pm->ps->weapon );
 				if (pm->ps->weaponTime < 500)
@@ -3873,23 +3910,45 @@ static void PM_Weapon( void )
 		}
 	}
 
-	if ( pm->cmd.buttons & BUTTON_ALT_ATTACK ) 	{
-		if (pm->ps->weapon == WP_DISRUPTOR && pm->ps->zoomMode != 1)
-		{
-			PM_AddEvent( EV_FIRE_WEAPON );
-			addTime = weaponData[pm->ps->weapon].fireTime;
-		}
-		else
-		{
-			PM_AddEvent( EV_ALT_FIRE );
-			addTime = weaponData[pm->ps->weapon].altFireTime;
-		}
+	if (pm->ps->stats[STAT_RACEMODE] && ((pm->ps->weapon == WP_DISRUPTOR) || (pm->ps->weapon == WP_STUN_BATON))) {
+		addTime = 600;
 	}
 	else {
-		PM_AddEvent( EV_FIRE_WEAPON );
-		addTime = weaponData[pm->ps->weapon].fireTime;
+		if (pm->cmd.buttons & BUTTON_ALT_ATTACK) {
+			if (pm->ps->weapon == WP_DISRUPTOR && pm->ps->zoomMode != 1)
+			{
+				PM_AddEvent(EV_FIRE_WEAPON);
+				addTime = weaponData[pm->ps->weapon].fireTime;
+			}
+			else
+			{
+				PM_AddEvent(EV_ALT_FIRE);
+#ifdef JK2_GAME
+				if (pm->ps->weapon == WP_STUN_BATON && jp_tweakWeapons.integer & WT_STUN_SHOCKLANCE)
+					addTime = 1500;
+				/*else if (pm->ps->weapon == WP_ROCKET_LAUNCHER && (jp_tweakWeapons.integer & WT_ROCKET_MORTAR) && !pm->ps->stats[STAT_RACEMODE])
+					addTime = 3000;*/
+				else if (pm->ps->weapon == WP_THERMAL && (jp_tweakWeapons.integer & WT_IMPACT_NITRON))
+					addTime = 2000;
+				else
+#endif
+					addTime = weaponData[pm->ps->weapon].altFireTime;
+			}
+		}
+		else {
+			PM_AddEvent(EV_FIRE_WEAPON);
+#ifdef JK2_GAME
+			if (pm->ps->weapon == WP_DISRUPTOR && jp_tweakWeapons.integer & WT_SLOW_SNIPER)//Sad hack to make instagib more playable
+				addTime = 1500;
+			else if (pm->ps->weapon == WP_STUN_BATON && jp_tweakWeapons.integer & WT_STUN_LG)
+				addTime = 50;
+			else if (pm->ps->weapon == WP_THERMAL && (jp_tweakWeapons.integer & WT_IMPACT_NITRON))
+				addTime = 2000;
+			else
+#endif
+				addTime = weaponData[pm->ps->weapon].fireTime;
+		}
 	}
-
 	if ( pm->ps->powerups[PW_HASTE] ) {
 		addTime /= 1.3;
 	}

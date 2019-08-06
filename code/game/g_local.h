@@ -173,6 +173,27 @@ extern int dueltypes[MAX_CLIENTS];//JAPRO - Serverside - Fullforce Duels y is th
 #define WT_SOLID_ROCKET			(1<<22)
 #define WT_NERFED_PISTOL		(1<<23)
 
+
+//Saber tweaks
+#define	ST_NO_MP_SABERLERP		(1<<0)
+#define ST_JK2_DMGSYSTEM		(1<<1)
+#define ST_REDUCE_SABERBLOCK	(1<<2)
+#define	ST_REDUCE_SABERDROP		(1<<3)
+#define ST_ALLOW_ROLLCANCEL		(1<<4) //CLIENT
+#define ST_NO_REDCHAIN			(1<<5)
+#define ST_FIXED_SABERSWITCH	(1<<6)
+#define ST_EASYBACKSLASH		(1<<7)
+#define ST_JK2RDFA				(1<<8)
+#define ST_FIXYELLOWDFA			(1<<9)
+#define ST_SPINREDDFA			(1<<10)
+#define ST_SPINBACKSLASH		(1<<11)
+#define ST_JK2LUNGE				(1<<12)
+#define ST_REDDFAFIX			(1<<13)
+#define ST_REDDFANOFORCE		(1<<14)
+#define ST_EASIERBACKSLASH		(1<<15)
+#define ST_SABERGUN				(1<<16)
+#define ST_FASTCYCLE			(1<<17)
+
 //jp_tweakVote TWEAKS
 #define TV_ALLOW_SIEGESPECVOTE		(1<<0)
 #define TV_ALLOW_CTFTFFASPECVOTE	(1<<1)
@@ -423,6 +444,8 @@ struct gentity_s {
 	//void			*ghoul2; //g2 instance
 	//int			g2LastSurfaceHit; //index of surface hit during the most recent ghoul2 collision performed on this client.
 	//int			g2LastSurfaceTime; //time when the surface index was set (to make sure it's up to date)
+
+	qboolean	raceModeShooter;
 	//jk2pro additionals - End
 };
 
@@ -663,6 +686,8 @@ struct gclient_s {
 	vec3_t		lastSaberDir_Always; //every getboltmatrix, set to saber dir
 	vec3_t		lastSaberBase_Always; //every getboltmatrix, set to saber base
 	int			lastSaberStorageTime; //server time that the above two values were updated (for making sure they aren't out of date)
+
+	int			lastThrowTime;  //JAPRO - Serverside - Add thsi to floodprotect flagthrow?
 
 	qboolean	hasCurrentPosition;	//are lastSaberTip and lastSaberBase valid?
 

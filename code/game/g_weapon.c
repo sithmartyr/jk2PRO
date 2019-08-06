@@ -193,7 +193,10 @@ static void WP_FireBryarPistol( gentity_t *ent, qboolean altFire )
 
 		if (count > 1)
 		{
-			damage *= (count*1.7);
+			if (count > 4 && (jp_tweakWeapons.integer & WT_NERFED_PISTOL))
+				damage *= 7; //70 dmg
+			else
+				damage *= (count*1.7);
 		}
 		else
 		{
@@ -787,11 +790,17 @@ static void WP_FireDisruptor( gentity_t *ent, qboolean altFire )
 
 	if ( altFire )
 	{
-		WP_DisruptorAltFire( ent );
+		if (jp_tweakWeapons.integer & WT_PROJ_SNIPER)
+			WP_DisruptorProjectileFire(ent, qtrue);
+		else
+			WP_DisruptorAltFire( ent );
 	}
 	else
 	{
-		WP_DisruptorMainFire( ent );
+		if (jp_tweakWeapons.integer & WT_PROJ_SNIPER)
+			WP_DisruptorProjectileFire(ent, qfalse);
+		else 
+			WP_DisruptorMainFire( ent );
 	}
 }
 
@@ -1610,11 +1619,17 @@ static void WP_FireFlechette( gentity_t *ent, qboolean altFire, int seed )
 {
 	if ( altFire )
 	{
+		if (jp_tweakWeapons.integer & WT_STAKE_GUN)
+			WP_ExplodeStakes(ent);
+		else
 		//WP_FlechetteProxMine( ent );
-		WP_FlechetteAltFire(ent, seed);
+			WP_FlechetteAltFire(ent, seed);
 	}
 	else
 	{
+		if (jp_tweakWeapons.integer & WT_STAKE_GUN)
+			WP_FireStakeGun(ent);
+		else
 		WP_FlechetteMainFire( ent, seed );
 	}
 }
@@ -1877,7 +1892,15 @@ void thermalThinkStandard(gentity_t *ent)
 		return;
 	}
 
-	G_RunObject(ent);
+	if ((jp_tweakWeapons.integer & WT_IMPACT_NITRON) && ent->bounceCount == 1) {
+		VectorClear(ent->s.pos.trDelta);
+		ent->s.pos.trType = TR_STATIONARY;
+	}
+
+	if (!(jp_tweakWeapons.integer & WT_IMPACT_NITRON))
+		G_RunObject(ent);
+
+	//G_RunObject(ent);
 	ent->nextthink = level.time;
 }
 
@@ -1926,6 +1949,11 @@ gentity_t *WP_FireThermalDetonator( gentity_t *ent, qboolean altFire )
 		chargeAmount = TD_MIN_CHARGE;
 	}
 
+	if (jp_tweakWeapons.integer & WT_IMPACT_NITRON) {
+		chargeAmount = 0.9f;
+		altFire = qfalse;
+	}
+
 	// normal ones bounce, alt ones explode on impact
 	bolt->bolt_Head = level.time + TD_TIME; // How long 'til she blows
 	bolt->s.pos.trType = TR_GRAVITY;
@@ -1946,10 +1974,17 @@ gentity_t *WP_FireThermalDetonator( gentity_t *ent, qboolean altFire )
 
 	bolt->s.loopSound = G_SoundIndex( "sound/weapons/thermal/thermloop.wav" );
 
-	bolt->damage = TD_DAMAGE;
+	if (jp_tweakWeapons.integer & WT_IMPACT_NITRON) {
+		bolt->damage = 40 * jp_weaponDamageScale.integer;
+		bolt->splashDamage = 10 * jp_weaponDamageScale.integer;
+		bolt->splashRadius = 96;//128
+	}
+	else {
+		bolt->damage = TD_DAMAGE;
+		bolt->splashDamage = TD_SPLASH_DAM;
+		bolt->splashRadius = TD_SPLASH_RAD;
+	}
 	bolt->dflags = 0;
-	bolt->splashDamage = TD_SPLASH_DAM;
-	bolt->splashRadius = TD_SPLASH_RAD;
 
 	bolt->s.eType = ET_MISSILE;
 	bolt->r.svFlags = SVF_USE_CURRENT_ORIGIN;
@@ -1967,6 +2002,8 @@ gentity_t *WP_FireThermalDetonator( gentity_t *ent, qboolean altFire )
 	VectorCopy( start, bolt->pos2 );
 
 	bolt->bounceCount = -5;
+	if (jp_tweakWeapons.integer & WT_IMPACT_NITRON)
+		bolt->bounceCount = 2;
 
 	return bolt;
 }

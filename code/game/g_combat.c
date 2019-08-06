@@ -681,6 +681,13 @@ void TossClientItems( gentity_t *self ) {
 
 		// spawn the item
 		Drop_Item( self, item, 0 );
+		if ((jp_tweakWeapons.integer & WT_FIX_MINEAMMO) && ((weapon == WP_TRIP_MINE) || (weapon == WP_DET_PACK)) && (self->client->ps.ammo[weaponData[weapon].ammoIndex] < bg_itemlist[BG_GetItemIndexByTag(weapon, IT_WEAPON)].quantity)) { //Quantity is always 3 for mines i guess
+			drop->count = self->client->ps.ammo[weaponData[weapon].ammoIndex];
+			if (drop->count < 1)
+				drop->count = 1;
+			if (drop->count > 3)
+				drop->count = 3;
+		}
 	}
 
 	// drop all the powerups if not in teamplay
@@ -3300,7 +3307,72 @@ void G_Damage( gentity_t *targ, gentity_t *inflictor, gentity_t *attacker,
 		damage *= 0.5;
 	}
 
-	if ( damage < 1 ) {
+	if (jp_tweakWeapons.integer & WT_IMPACT_NITRON && (/*mod == MOD_THERMAL ||*/ mod == MOD_THERMAL_SPLASH)) {
+		if (targ && targ->client) {
+			if (targ->client->ps.powerups[PW_REDFLAG])
+			{
+				gentity_t	*thrown;
+				gitem_t		*item;
+
+				item = BG_FindItemForPowerup(PW_REDFLAG);
+				thrown = Drop_Flag(targ, item, qtrue);
+				thrown->count = (targ->client->ps.powerups[PW_REDFLAG] - level.time) / 1000;
+				thrown->r.contents = CONTENTS_TRIGGER | CONTENTS_CORPSE;
+				if (thrown->count < 1) {
+					thrown->count = 1;
+				}
+				targ->client->ps.powerups[PW_REDFLAG] = 0;
+				targ->client->lastThrowTime = level.time;
+				G_Sound(targ, CHAN_AUTO, G_SoundIndex("sound/interface/weapon_deselect.mp3"));
+			}
+			else if (targ->client->ps.powerups[PW_BLUEFLAG])
+			{
+				gentity_t	*thrown;
+				gitem_t		*item;
+
+				item = BG_FindItemForPowerup(PW_BLUEFLAG);
+				thrown = Drop_Flag(targ, item, qtrue);
+				thrown->count = (targ->client->ps.powerups[PW_BLUEFLAG] - level.time) / 1000;
+				thrown->r.contents = CONTENTS_TRIGGER | CONTENTS_CORPSE;
+				if (thrown->count < 1) {
+					thrown->count = 1;
+				}
+				targ->client->ps.powerups[PW_BLUEFLAG] = 0;
+				targ->client->lastThrowTime = level.time;
+				G_Sound(targ, CHAN_AUTO, G_SoundIndex("sound/interface/weapon_deselect.mp3"));
+			}
+			else if (targ->client->ps.powerups[PW_NEUTRALFLAG])
+			{
+				gentity_t	*thrown;
+				gitem_t		*item;
+
+				item = BG_FindItemForPowerup(PW_NEUTRALFLAG);
+				thrown = Drop_Flag(targ, item, qtrue);
+				thrown->count = (targ->client->ps.powerups[PW_NEUTRALFLAG] - level.time) / 1000;
+				thrown->r.contents = CONTENTS_TRIGGER | CONTENTS_CORPSE;
+				if (thrown->count < 1) {
+					thrown->count = 1;
+				}
+				targ->client->ps.powerups[PW_NEUTRALFLAG] = 0;
+				targ->client->lastThrowTime = level.time;
+				G_Sound(targ, CHAN_AUTO, G_SoundIndex("sound/interface/weapon_deselect.mp3"));
+			}
+		}
+	}
+
+
+	if (mod == MOD_STUN_BATON && jp_tweakWeapons.integer & WT_STUN_HEAL && (attacker->client && !attacker->client->ps.duelInProgress)) {
+		//if (damage < 1 && damage >= 0)
+		//	damage = 1;
+		if (damage > -1 && damage <= 0)
+			damage = -1;
+
+		if (damage < 0 && !targ)
+			damage = 0;	//Dont let them overheal too much.. or revive
+		else if (damage < 0 && targ && ((targ->health >= 125) || (targ->health < 1)))
+			damage = 0;
+	}
+	else if ( damage < 1 ) {
 		damage = 1;
 	}
 	take = damage;

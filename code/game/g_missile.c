@@ -584,6 +584,26 @@ void G_MissileImpact( gentity_t *ent, trace_t *trace ) {
 				velocity[2] = 1;	// stepped on a grenade
 			}
 
+			//damage falloff option, assumes bullet lifetime is 10,000 (default)
+			if ((jp_tweakWeapons.integer & WT_NO_SPREAD) &&
+				((ent->s.weapon == WP_BLASTER && (ent->s.eFlags & EF_ALT_FIRING)) ||
+				(ent->s.weapon == WP_REPEATER && !(ent->s.eFlags & EF_ALT_FIRING))
+					))
+			{ //If the weapon has spread, just reduce damage based on distance for nospread tweak.  This should probably be accompanied with the damagenumber setting so you can keep track of your dmg..
+				float lifetime = (10000 - ent->nextthink + level.time) * 0.001;
+				//float scale = powf(2, -lifetime);
+				float scale = -1.5 * lifetime + 1;
+
+				scale += 0.1f; //offset it a bit so super close shots dont get affected at all
+
+				if (scale < 0.2f)
+					scale = 0.2f;
+				else if (scale > 1.0f)
+					scale = 1.0f;
+
+				ent->damage *= scale;
+			}
+
 			if (ent->s.weapon == WP_BOWCASTER || ent->s.weapon == WP_FLECHETTE ||
 				ent->s.weapon == WP_ROCKET_LAUNCHER)
 			{
@@ -660,6 +680,11 @@ void G_RunMissile( gentity_t *ent ) {
 
 	// get current position
 	BG_EvaluateTrajectory( &ent->s.pos, level.time, origin );
+
+	//If its a rocket, and older than 500ms, make it solid to the shooter.
+	if ((jp_tweakWeapons.integer & WT_SOLID_ROCKET) && (ent->s.weapon == WP_ROCKET_LAUNCHER) && (!ent->raceModeShooter) && (ent->nextthink - level.time < 9500)) {
+		ent->r.ownerNum = ENTITYNUM_WORLD;
+	}
 
 	// if this missile bounced off an invulnerability sphere
 	if ( ent->target_ent ) {
