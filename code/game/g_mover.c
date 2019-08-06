@@ -1702,7 +1702,7 @@ void BreakableBrushDie(gentity_t *self, gentity_t *inflictor, gentity_t *attacke
 			defaultradius = self->splashRadius;
 		}
 
-		G_RadiusDamage(dif, self, self->splashDamage, defaultradius, self, MOD_UNKNOWN);
+		G_RadiusDamage(dif, self, self->splashDamage, defaultradius, self, self, MOD_UNKNOWN);
 		u[YAW] = 0;
 		u[PITCH] = 1;
 		u[ROLL] = 0;

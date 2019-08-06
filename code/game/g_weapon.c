@@ -545,6 +545,37 @@ static void WP_DisruptorMainFire( gentity_t *ent )
 	}
 }
 
+void WP_DisruptorProjectileFire(gentity_t *ent, qboolean altFire)
+{
+	int	damage = 35;
+	gentity_t *missile;
+
+	if (altFire)
+		damage = 70;
+
+	damage *= jp_weaponDamageScale.value;
+
+	VectorMA(muzzle, -6, right, muzzle);
+
+	missile = CreateMissileNew(muzzle, forward, 10000 * jp_projectileVelocityScale.value, 10000, ent, altFire, qtrue, qtrue);
+
+	missile->classname = "blaster_proj";
+	missile->s.weapon = WP_BLASTER;
+
+	//VectorSet( missile->r.maxs, BOWCASTER_SIZE, BOWCASTER_SIZE, BOWCASTER_SIZE );
+	//VectorScale( missile->r.maxs, -1, missile->r.mins );
+
+	missile->damage = damage;
+	missile->dflags = DAMAGE_DEATH_KNOCKBACK;
+	missile->methodOfDeath = MOD_BLASTER;
+	missile->clipmask = MASK_SHOT;// | CONTENTS_LIGHTSABER;
+
+								  //missile->flags |= FL_BOUNCE;
+	missile->bounceCount = 8;//was 3
+
+							 //if (g_tweakWeapons.integer & PROJECTILE_GRAVITY) //JAPRO - Serverside - Give bullets gravity!
+	missile->s.pos.trType = TR_GRAVITY;
+}
 
 //---------------------------------------------------------
 void WP_DisruptorAltFire( gentity_t *ent )
@@ -1428,6 +1459,243 @@ static void WP_FlechetteMainFire( gentity_t *ent, int seed )
 	}
 }
 
+#define STAKE_SIZE				3.0f
+
+void stakeStick(gentity_t *stake, vec3_t endpos, vec3_t normal)
+{
+	G_SetOrigin(stake, endpos);
+	VectorCopy(normal, stake->pos1);
+
+	VectorClear(stake->s.apos.trDelta);
+	// This will orient the object to face in the direction of the normal
+	VectorCopy(normal, stake->s.pos.trDelta);
+	//VectorScale( normal, -1, ent->s.pos.trDelta );
+	stake->s.pos.trTime = level.time;
+
+	//This does nothing, cg_missile makes assumptions about direction of travel controlling angles
+	vectoangles(normal, stake->s.apos.trBase);
+	VectorClear(stake->s.apos.trDelta);
+	stake->s.apos.trType = TR_STATIONARY;
+	VectorCopy(stake->s.apos.trBase, stake->s.angles);
+	VectorCopy(stake->s.angles, stake->r.currentAngles);
+
+	//G_Sound( stake, CHAN_WEAPON, G_SoundIndex( "sound/weapons/laser_trap/stick.wav" ) );
+
+	//add draw line flag
+	VectorCopy(normal, stake->movedir);
+	stake->think = NULL;
+	stake->nextthink = -1;
+	stake->touch = touch_NULL;
+
+	//stake->splashMethodOfDeath = MOD_TRIP_MINE_SPLASH;
+
+	//shove the box through the wall
+	VectorSet(stake->r.mins, -STAKE_SIZE * 2, -STAKE_SIZE * 2, -STAKE_SIZE * 2);
+	VectorSet(stake->r.maxs, STAKE_SIZE * 2, STAKE_SIZE * 2, STAKE_SIZE * 2);
+
+	//so that the owner can blow it up with projectiles
+	//stake->r.svFlags |= SVF_OWNERNOTSHARED;
+
+	stake->r.ownerNum = 32; //sad hack to make it solid to us.. hm
+
+	trap_LinkEntity(/*(sharedEntity_t *)*/stake);
+}
+
+void stakeExplode(gentity_t *self)
+{
+	self->takedamage = qfalse;
+
+	VectorNormalize(self->s.pos.trDelta);
+
+	if (self->activator)
+		G_RadiusDamage(self->r.currentOrigin, self->activator, self->splashDamage, self->splashRadius, self, self, self->methodOfDeath/*MOD_LT_SPLASH*/);
+	G_AddEvent(self, EV_MISSILE_MISS, 0);
+
+	G_PlayEffect(EFFECT_EXPLOSION_FLECHETTE, self->r.currentOrigin, self->s.pos.trDelta);
+
+	self->think = G_FreeEntity;
+	self->nextthink = level.time;
+}
+
+
+void stakeDamagedExplode(gentity_t *self, gentity_t *inflictor, gentity_t *attacker, int damage, int meansOfDeath)
+{
+	self->enemy = attacker;
+	self->think = stakeExplode;
+	self->nextthink = level.time + FRAMETIME;
+	self->takedamage = qfalse;
+}
+
+void touchStake(gentity_t *stake, gentity_t *other, trace_t *trace)
+{
+	if (other && other->s.number < ENTITYNUM_WORLD) { //just explode if we hit any entity.
+		if (stake->activator != other) {
+			stake->think = stakeExplode;
+			stake->nextthink = level.time;
+		}
+	}
+	else {
+		stake->touch = 0;
+		if (trace->entityNum != ENTITYNUM_NONE)
+			stake->enemy = &g_entities[trace->entityNum];
+		stakeStick(stake, trace->endpos, trace->plane.normal);
+	}
+}
+
+void StakeThink(gentity_t *stake)
+{ //laser trap think
+	stake->nextthink = level.time + 50;
+	G_RunObject(stake);
+}
+
+void CreateStake(gentity_t *stake, vec3_t start, gentity_t *owner)
+{ //create a laser trap entity
+	vec3_t aim;
+
+	vectoangles(forward, aim);
+
+	stake->classname = "laserTrap";
+	//stake->flags |= FL_BOUNCE_HALF;
+	stake->s.eFlags |= EF_MISSILE_STICK;
+	stake->s.eType = ET_GENERAL;
+	stake->r.svFlags = SVF_USE_CURRENT_ORIGIN;
+	stake->s.weapon = WP_TRIP_MINE;
+	//stake->s.pos.trType = TR_LINEAR;
+	//if (g_tweakWeapons.integer & PROJECTILE_GRAVITY) //JAPRO - Serverside - Give bullets gravity!
+	stake->s.pos.trType = TR_GRAVITY;
+	stake->r.contents = MASK_SHOT;
+	//if (g_raceMode.integer) //Sad hack.. quickfix to stop tripmine abuse
+	//stake->r.contents = CONTENTS_NONE;
+	stake->parent = owner;
+	stake->activator = owner;
+	stake->r.ownerNum = owner->s.number;
+	VectorSet(stake->r.mins, -STAKE_SIZE, -STAKE_SIZE, -STAKE_SIZE);
+	VectorSet(stake->r.maxs, STAKE_SIZE, STAKE_SIZE, STAKE_SIZE);
+	stake->clipmask = MASK_SHOT;
+	stake->s.solid = SOLID_BBOX;
+
+	stake->splashDamage = 45;
+	stake->splashRadius = 128;
+	stake->damage = 45;
+	stake->methodOfDeath = MOD_TRIP_MINE_SPLASH;
+
+	stake->takedamage = qtrue;
+	stake->health = 10;
+	stake->die = stakeDamagedExplode;
+
+	//stake->spawnflags |= 4;
+
+	//stake->s.modelindex = G_ModelIndex( "models/weapons2/laser_trap/laser_trap_w.glm" );
+	//stake->s.modelGhoul2 = 1;
+	//stake->s.g2radius = 40;
+
+	stake->s.modelindex = G_ModelIndex("models/weapons2/merr_sonn/projectile.md3");
+
+	stake->s.genericenemyindex = 32;//owner->s.number+MAX_GENTITIES;
+
+									//stake->health = 100;
+
+									//stake->s.time = 0;
+
+	stake->s.pos.trTime = level.time;		// move a bit on the very first frame?
+	VectorCopy(start, stake->s.pos.trBase);
+	SnapVector(stake->s.pos.trBase);			// save net bandwidth
+
+	SnapVector(stake->s.pos.trDelta);			// save net bandwidth
+	VectorCopy(start, stake->r.currentOrigin);
+
+	stake->s.apos.trType = TR_LINEAR;
+	stake->s.apos.trTime = level.time;
+
+	stake->s.apos.trDelta[ROLL] = 90;
+	VectorCopy(aim, stake->s.apos.trBase);
+
+	VectorCopy(start, stake->pos2);
+	stake->touch = touchStake;
+	stake->think = StakeThink;
+	stake->nextthink = level.time + 50;
+}
+
+static void WP_FireStakeGun(gentity_t *ent)
+{
+	gentity_t	*stake;
+	gentity_t	*found = NULL;
+	vec3_t		start;
+	int			trapcount = 0;
+	int			foundLaserTraps[MAX_GENTITIES];
+	int			trapcount_org;
+	int			lowestTimeStamp;
+	int			removeMe;
+	int			i;
+
+	foundLaserTraps[0] = ENTITYNUM_NONE;
+
+	stake = G_Spawn(qfalse);
+
+	//limit to 10 placed at any one time
+	//see how many there are now
+	while ((found = G_Find(found, FOFS(classname), "laserTrap")) != NULL) {
+		if (found->parent != ent)
+			continue;
+		foundLaserTraps[trapcount++] = found->s.number;
+	}
+	//now remove first ones we find until there are only 9 left
+	found = NULL;
+	trapcount_org = trapcount;
+	lowestTimeStamp = level.time;
+	while (trapcount > 9) {
+		removeMe = -1;
+		for (i = 0; i < trapcount_org; i++) {
+			if (foundLaserTraps[i] == ENTITYNUM_NONE)
+				continue;
+			found = &g_entities[foundLaserTraps[i]];
+			if (stake && found->setTime < lowestTimeStamp) {
+				removeMe = i;
+				lowestTimeStamp = found->setTime;
+			}
+		}
+		if (removeMe != -1) {
+			//remove it... or blow it?
+			if (&g_entities[foundLaserTraps[removeMe]] == NULL)
+				break;
+			else
+				G_FreeEntity(&g_entities[foundLaserTraps[removeMe]]);
+			foundLaserTraps[removeMe] = ENTITYNUM_NONE;
+			trapcount--;
+		}
+		else break;
+	}
+
+	//ent->client->numStakes = trapcount;
+
+	VectorMA(muzzle, STAKE_SIZE * 6, forward, start);//Start the stake ahead of us a bit so we cant get ourselves stuck into a wall with it
+	CreateStake(stake, start, ent); //now make the new one
+
+	stake->setTime = level.time;//remember when we placed it
+
+								//move it
+	VectorScale(forward, 3000 * jp_projectileVelocityScale.value, stake->s.pos.trDelta);
+
+	trap_LinkEntity(/*(sharedEntity_t *)*/stake);
+}
+
+static void WP_ExplodeStakes(gentity_t *ent)
+{
+	gentity_t	*found = NULL;
+	//Is there a faster way of doing this
+	while ((found = G_Find(found, FOFS(classname), "laserTrap")) != NULL) {
+		if (found->parent != ent)
+			continue;
+		found->think = stakeExplode;
+		found->nextthink = level.time;
+	}
+
+	//ent->client->numStakes = 0;
+
+	//uhh..
+	//could maybe make this faster by keeping trakc of how many stakes we have in the world that are ours, and loop through ingane eneities blowing them up, but break after we reach the count
+}
+
 //---------------------------------------------------------
 void prox_mine_think( gentity_t *ent )
 //---------------------------------------------------------
@@ -1874,7 +2142,7 @@ void thermalDetonatorExplode( gentity_t *ent )
 		ent->freeAfterEvent = qtrue;
 
 		if (G_RadiusDamage( ent->r.currentOrigin, ent->parent,  ent->splashDamage, ent->splashRadius, 
-				ent, ent->splashMethodOfDeath))
+				ent, ent, ent->splashMethodOfDeath))
 		{
 			g_entities[ent->r.ownerNum].client->accuracy_hits++;
 		}
@@ -2039,7 +2307,7 @@ void laserTrapExplode( gentity_t *self )
 
 	if (self->activator)
 	{
-		G_RadiusDamage( self->r.currentOrigin, self->activator, self->splashDamage, self->splashRadius, self, MOD_TRIP_MINE_SPLASH/*MOD_LT_SPLASH*/ );
+		G_RadiusDamage( self->r.currentOrigin, self->activator, self->splashDamage, self->splashRadius, self, self, MOD_TRIP_MINE_SPLASH/*MOD_LT_SPLASH*/ );
 	}
 	//FIXME: clear me from owner's list of tripmines?
 
@@ -2410,7 +2678,7 @@ void charge_stick (gentity_t *self, gentity_t *other, trace_t *trace)
 		VectorClear(self->s.apos.trDelta);
 		self->s.apos.trType = TR_STATIONARY;
 
-		G_RadiusDamage( self->r.currentOrigin, self->parent, self->splashDamage, self->splashRadius, self, MOD_DET_PACK_SPLASH );
+		G_RadiusDamage( self->r.currentOrigin, self->parent, self->splashDamage, self->splashRadius, self, self, MOD_DET_PACK_SPLASH );
 		VectorCopy(trace->plane.normal, v);
 		VectorCopy(v, self->pos2);
 		self->count = -1;
@@ -2467,7 +2735,7 @@ void DetPackBlow(gentity_t *self)
 	self->die = 0;
 	self->takedamage = qfalse;
 
-	G_RadiusDamage( self->r.currentOrigin, self->parent, self->splashDamage, self->splashRadius, self, MOD_DET_PACK_SPLASH );
+	G_RadiusDamage( self->r.currentOrigin, self->parent, self->splashDamage, self->splashRadius, self, self, MOD_DET_PACK_SPLASH );
 	v[0] = 0;
 	v[1] = 0;
 	v[2] = 1;
@@ -3660,7 +3928,7 @@ void emplaced_gun_update(gentity_t *self)
 
 		self->boltpoint3 = level.time + Q_irand(2500, 3500);
 
-		G_RadiusDamage(self->r.currentOrigin, self, self->splashDamage, self->splashRadius, self, MOD_UNKNOWN);
+		G_RadiusDamage(self->r.currentOrigin, self, self->splashDamage, self->splashRadius, self, NULL, MOD_UNKNOWN);
 
 		self->s.time = -1;
 

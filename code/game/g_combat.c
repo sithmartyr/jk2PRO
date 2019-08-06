@@ -506,7 +506,7 @@ void ExplodeDeath( gentity_t *self )
 			attacker = self->parent;
 		}
 		G_RadiusDamage( self->r.currentOrigin, attacker, self->splashDamage, self->splashRadius, 
-				attacker, MOD_UNKNOWN );
+				attacker, NULL, MOD_UNKNOWN );
 	}
 
 	ObjectDie( self, self, self, 20, 0 );
@@ -3683,7 +3683,7 @@ qboolean CanDamage (gentity_t *targ, vec3_t origin) {
 G_RadiusDamage
 ============
 */
-qboolean G_RadiusDamage ( vec3_t origin, gentity_t *attacker, float damage, float radius,
+/*qboolean G_RadiusDamage ( vec3_t origin, gentity_t *attacker, float damage, float radius,
 					 gentity_t *ignore, int mod) {
 	float		points, dist;
 	gentity_t	*ent;
@@ -3741,6 +3741,124 @@ qboolean G_RadiusDamage ( vec3_t origin, gentity_t *attacker, float damage, floa
 			// get knocked into the air more
 			dir[2] += 24;
 			G_Damage (ent, NULL, attacker, dir, origin, (int)points, DAMAGE_RADIUS, mod);
+		}
+	}
+
+	return hitClient;
+}
+*/
+qboolean G_RadiusDamage(vec3_t origin, gentity_t *attacker, float damage, float radius,
+	gentity_t *ignore, gentity_t *missile, int mod) {
+	float		points, dist;
+	gentity_t	*ent;
+	int			entityList[MAX_GENTITIES];
+	int			numListedEntities;
+	vec3_t		mins, maxs;
+	vec3_t		v;
+	vec3_t		dir;
+	int			i, e;
+	qboolean	hitClient = qfalse;
+	qboolean	roastPeople = qfalse;
+
+	/*
+	if (missile && !missile->client && missile->s.weapon > WP_NONE &&
+	missile->s.weapon < WP_NUM_WEAPONS && missile->r.ownerNum >= 0 &&
+	(missile->r.ownerNum < MAX_CLIENTS || g_entities[missile->r.ownerNum].s.eType == ET_NPC))
+	{ //sounds like it's a valid weapon projectile.. is it a valid explosive to create marks from?
+	switch(missile->s.weapon)
+	{
+	case WP_FLECHETTE: //flechette issuing this will be alt-fire
+	case WP_ROCKET_LAUNCHER:
+	case WP_THERMAL:
+	case WP_TRIP_MINE:
+	case WP_DET_PACK:
+	roastPeople = qtrue; //Then create explosive marks
+	break;
+	default:
+	break;
+	}
+	}
+	*/
+	//oh well.. maybe sometime? I am trying to cut down on tempent use.
+
+	if (radius < 1) {
+		radius = 1;
+	}
+
+	for (i = 0; i < 3; i++) {
+		mins[i] = origin[i] - radius;
+		maxs[i] = origin[i] + radius;
+	}
+
+	numListedEntities = trap_EntitiesInBox(mins, maxs, entityList, MAX_GENTITIES);
+
+	for (e = 0; e < numListedEntities; e++) {
+		ent = &g_entities[entityList[e]];
+
+		if (ent == ignore)
+			continue;
+		if (!ent->takedamage)
+			continue;
+
+		// find the distance from the edge of the bounding box
+		for (i = 0; i < 3; i++) {
+			if (origin[i] < ent->r.absmin[i]) {
+				v[i] = ent->r.absmin[i] - origin[i];
+			}
+			else if (origin[i] > ent->r.absmax[i]) {
+				v[i] = origin[i] - ent->r.absmax[i];
+			}
+			else {
+				v[i] = 0;
+			}
+		}
+
+		dist = VectorLength(v);
+		if (dist >= radius) {
+			continue;
+		}
+
+		//	if ( ent->health <= 0 )
+		//		continue;
+
+		points = damage * (1.0 - dist / radius);
+
+		if (CanDamage(ent, origin)) {
+			if (LogAccuracyHit(ent, attacker)) {
+				hitClient = qtrue;
+			}
+			VectorSubtract(ent->r.currentOrigin, origin, dir);
+			// push the center of mass higher than the origin so players
+			// get knocked into the air more
+			dir[2] += 24;
+			G_Damage(ent, NULL, attacker, dir, origin, (int)points, DAMAGE_RADIUS, mod);
+
+			if (ent && ent->client && roastPeople && missile &&
+				!VectorCompare(ent->r.currentOrigin, missile->r.currentOrigin))
+			{ //the thing calling this function can create burn marks on people, so create an event to do so
+				gentity_t *evEnt = G_TempEntity(ent->r.currentOrigin, EV_MISSILE_HIT); //EV_GHOUL2_MARK);  //Couldn't use this one, as it's a JKA thing, so I have no idea how well MISSILE_HIT is going to work.
+
+				evEnt->s.otherEntityNum = ent->s.number; //the entity the mark should be placed on
+				evEnt->s.weapon = WP_ROCKET_LAUNCHER; //always say it's rocket so we make the right mark
+
+													  //Try to place the decal by going from the missile location to the location of the person that was hit
+				VectorCopy(missile->r.currentOrigin, evEnt->s.origin);
+				VectorCopy(ent->r.currentOrigin, evEnt->s.origin2);
+
+				//it's hacky, but we want to move it up so it's more likely to hit
+				//the torso.
+				if (missile->r.currentOrigin[2] < ent->r.currentOrigin[2])
+				{ //move it up less so the decal is placed lower on the model then
+					evEnt->s.origin2[2] += 8;
+				}
+				else
+				{
+					evEnt->s.origin2[2] += 24;
+				}
+
+				//Special col check
+				evEnt->s.eventParm = 1;
+			}
 		}
 	}
 

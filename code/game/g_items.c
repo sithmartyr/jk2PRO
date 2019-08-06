@@ -920,7 +920,7 @@ void turret_die(gentity_t *self, gentity_t *inflictor, gentity_t *attacker, int 
 	VectorSet( self->s.angles, 0, 0, 1 );
 
 	G_PlayEffect(EFFECT_EXPLOSION_PAS, self->s.pos.trBase, self->s.angles);
-	G_RadiusDamage(self->s.pos.trBase, &g_entities[self->boltpoint3], 30, 256, self, MOD_UNKNOWN);
+	G_RadiusDamage(self->s.pos.trBase, &g_entities[self->boltpoint3], 30, 256, self, self, MOD_UNKNOWN);
 
 	g_entities[self->boltpoint3].client->ps.fd.sentryDeployed = qfalse;
 
@@ -1686,6 +1686,25 @@ gentity_t *Drop_Item( gentity_t *ent, gitem_t *item, float angle ) {
 	return LaunchItem( item, ent->s.pos.trBase, velocity );
 }
 
+gentity_t *Drop_Flag(gentity_t *ent, gitem_t *item, qboolean forced) {
+	vec3_t	velocity;
+	vec3_t	angles;
+
+	VectorCopy(ent->s.apos.trBase, angles);
+
+	if (forced) //Conced by nitron thermal or something.. dont let people just aim straight up or down to avoid the effects of this
+		angles[PITCH] = 0;
+
+	AngleVectors(angles, velocity, NULL, NULL);
+
+	VectorScale(velocity, 625, velocity);
+
+	velocity[0] += 0.25 * ent->client->ps.velocity[0];
+	velocity[1] += 0.25 * ent->client->ps.velocity[1];
+	velocity[2] += 50 + 0.5 * ent->client->ps.velocity[2];
+
+	return LaunchItem(item, ent->s.pos.trBase, velocity);
+}
 
 /*
 ================

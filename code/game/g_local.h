@@ -896,6 +896,8 @@ void G_CheckTeamItems( void );
 void G_RunItem( gentity_t *ent );
 void RespawnItem( gentity_t *ent );
 
+gentity_t *Drop_Flag(gentity_t *ent, gitem_t *item, qboolean forced);
+
 void UseHoldableItem( gentity_t *ent );
 void PrecacheItem (gitem_t *it);
 gentity_t *Drop_Item( gentity_t *ent, gitem_t *item, float angle );
@@ -1007,7 +1009,7 @@ Ghoul2 Insert End
 //
 qboolean CanDamage (gentity_t *targ, vec3_t origin);
 void G_Damage (gentity_t *targ, gentity_t *inflictor, gentity_t *attacker, vec3_t dir, vec3_t point, int damage, int dflags, int mod);
-qboolean G_RadiusDamage (vec3_t origin, gentity_t *attacker, float damage, float radius, gentity_t *ignore, int mod);
+qboolean G_RadiusDamage(vec3_t origin, gentity_t *attacker, float damage, float radius, gentity_t *ignore, gentity_t *missile, int mod);
 void body_die( gentity_t *self, gentity_t *inflictor, gentity_t *attacker, int damage, int meansOfDeath );
 void TossClientWeapon(gentity_t *self, vec3_t direction, float speed);
 void TossClientItems( gentity_t *self );
