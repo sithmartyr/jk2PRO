@@ -2627,7 +2627,7 @@ int BG_GetGametypeForString(const char *gametype)
 	else if (!Q_stricmp(gametype, "tdm")
 		|| !Q_stricmp(gametype, "tffa")
 		|| !Q_stricmp(gametype, "team"))			return GT_TEAM;
-	/*else if (!Q_stricmp(gametype, "saga"))			return GT_SAGA;*/
+	else if (!Q_stricmp(gametype, "saga"))			return GT_SAGA;
 	else if (!Q_stricmp(gametype, "ctf"))			return GT_CTF;
 	else if (!Q_stricmp(gametype, "cty"))			return GT_CTY;
 	else												return -1;

@@ -385,7 +385,7 @@ static cvarTable_t		gameCvarTable[] = {
 	{ &jp_projectileInheritance, "jp_projectileInheritance", "0", CVAR_ARCHIVE, qtrue },
 	{ &jp_fullInheritance, "jp_fullInheritance", "0", CVAR_ARCHIVE, qtrue },
 	{ &jp_unlagged, "jp_unlagged", "0", CVAR_ARCHIVE | CVAR_LATCH, qtrue },
-	{ &jp_startingWeapons, "jp_startingWeapons", "8", CVAR_ARCHIVE, qtrue },
+	{ &jp_startingWeapons, "jp_startingWeapons", "4", CVAR_ARCHIVE, qtrue }, //Changed from def. value of 8 to 4, because we have no melee in JK2.
 };
 
 // bk001129 - made static to avoid aliasing

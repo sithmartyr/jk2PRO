@@ -979,7 +979,7 @@ void SetTeam(gentity_t *ent, char *s, qboolean forcedToJoin) {//JAPRO - Modified
 		team = TEAM_SPECTATOR;
 		specState = SPECTATOR_FREE;
 	}
-	else if (level.gametype >= GT_TEAM) {
+	else if (g_gametype.integer >= GT_TEAM) {
 		// if running a team game, assign player to one of the teams
 		specState = SPECTATOR_NOT;
 		if (!Q_stricmp(s, "red") || !Q_stricmp(s, "r"))
@@ -1059,7 +1059,6 @@ void SetTeam(gentity_t *ent, char *s, qboolean forcedToJoin) {//JAPRO - Modified
 					return;
 				}
 			}
-			//}
 		}
 
 		if (g_teamForceBalance.integer) {
@@ -1096,7 +1095,7 @@ void SetTeam(gentity_t *ent, char *s, qboolean forcedToJoin) {//JAPRO - Modified
 				va("print \"%s\n\"", G_GetStringEdString("MP_SVGAME", "TOOMANYBLUE_SWITCH")) );
 				}
 				else
-				*/
+				*/ 
 				{
 					//JAC: Invalid clientNum was being used
 					trap_SendServerCommand(ent - g_entities,
@@ -1124,7 +1123,6 @@ void SetTeam(gentity_t *ent, char *s, qboolean forcedToJoin) {//JAPRO - Modified
 		}
 		}
 		*/
-
 	}
 	else {
 		if (level.isLockedfree && !forcedToJoin)
@@ -1142,7 +1140,7 @@ void SetTeam(gentity_t *ent, char *s, qboolean forcedToJoin) {//JAPRO - Modified
 	oldTeam = client->sess.sessionTeam;
 
 	// override decision if limiting the players
-	if ((level.gametype == GT_TOURNAMENT)
+	if ((g_gametype.integer == GT_TOURNAMENT)
 		&& level.numNonSpectatorClients >= 2)
 	{
 		team = TEAM_SPECTATOR;
@@ -1165,7 +1163,7 @@ void SetTeam(gentity_t *ent, char *s, qboolean forcedToJoin) {//JAPRO - Modified
 	//
 
 	//If it's siege then show the mission briefing for the team you just joined.
-	//	if (level.gametype == GT_SIEGE && team != TEAM_SPECTATOR)
+	//	if (g_gametype.integer == GT_SIEGE && team != TEAM_SPECTATOR)
 	//	{
 	//		trap_SendServerCommand(clientNum, va("sb %i", team));
 	//	}
@@ -1236,6 +1234,8 @@ void SetTeam(gentity_t *ent, char *s, qboolean forcedToJoin) {//JAPRO - Modified
 				G_AddDuel(duelAgainst->client->pers.lastUserName, ent->client->pers.lastUserName, duelAgainst->client->pers.duelStartTime, dueltypes[ent->client->ps.clientNum], duelAgainst->client->ps.stats[STAT_HEALTH], duelAgainst->client->ps.stats[STAT_ARMOR]);
 		}
 	}*/
+
+	ClientUserinfoChanged(clientNum);
 
 	if (!g_preventTeamBegin)
 	{
@@ -1500,7 +1500,7 @@ static void G_SayTo( gentity_t *ent, gentity_t *other, int mode, int color, cons
 	/*if ( mode == SAY_TEAM  && !OnSameTeam(ent, other) ) {
 		return;
 	}*/
-	if (mode == SAY_TEAM && ((level.gametype >= GT_TEAM && !OnSameTeam(ent, other)) || (level.gametype < GT_TEAM && (ent->client->sess.sessionTeam != other->client->sess.sessionTeam)))) {
+	if (mode == SAY_TEAM && ((g_gametype.integer >= GT_TEAM && !OnSameTeam(ent, other)) || (g_gametype.integer < GT_TEAM && (ent->client->sess.sessionTeam != other->client->sess.sessionTeam)))) {
 		return;
 	}
 
@@ -1965,7 +1965,7 @@ void Cmd_MapList_f(gentity_t *ent) {
 		Q_strncpyz(map, Info_ValueForKey(level.arenas.infos[i], "map"), sizeof(map));
 		Q_StripColor(map);
 
-		if (G_DoesMapSupportGametype(map, level.gametype)) {
+		if (G_DoesMapSupportGametype(map, g_gametype.integer)) {
 			char *tmpMsg = va(" ^%c%s", (++toggle & 1) ? COLOR_GREEN : COLOR_YELLOW, map);
 			if (strlen(buf) + strlen(tmpMsg) >= sizeof(buf)) {
 				trap_SendServerCommand(ent - g_entities, va("print \"%s\"", buf));
@@ -2090,7 +2090,7 @@ qboolean G_VoteMap(gentity_t *ent, int numArgs, const char *arg1, const char *ar
 	}
 	trap_FS_FCloseFile(fp);
 
-	if (!G_DoesMapSupportGametype(arg2, level.gametype) /*&& !(g_tweakVote.integer & TV_FIX_GAMETYPEMAP)*/) { //new TV for check arena file for matching gametype?
+	if (!G_DoesMapSupportGametype(arg2, g_gametype.integer) /*&& !(g_tweakVote.integer & TV_FIX_GAMETYPEMAP)*/) { //new TV for check arena file for matching gametype?
 																											  //Logic, this is not needed because we have live update gametype?
 		trap_SendServerCommand(ent - g_entities, va("print \"%s\n\"", G_GetStringEdString("MP_SVGAME", "NOVOTE_MAPNOTSUPPORTEDBYGAME")));
 		return qfalse;
@@ -2315,10 +2315,10 @@ void Cmd_CallVote_f(gentity_t *ent) {
 
 	// can't vote as a spectator, except in (power)duel.. fuck this logic
 
-	if (ent->client->sess.sessionTeam == TEAM_SPECTATOR || (ent->client->sess.sessionTeam == TEAM_FREE && level.gametype >= GT_TEAM)) { //If we are in spec or racemode
-		/*if (level.gametype == GT_SAGA && jp_tweakVote.integer & TV_ALLOW_SIEGESPECVOTE) {
+	if (ent->client->sess.sessionTeam == TEAM_SPECTATOR || (ent->client->sess.sessionTeam == TEAM_FREE && g_gametype.integer >= GT_TEAM)) { //If we are in spec or racemode
+		/*if (g_gametype.integer == GT_SAGA && jp_tweakVote.integer & TV_ALLOW_SIEGESPECVOTE) {
 		}
-		else */if (level.gametype >= GT_TEAM && jp_tweakVote.integer & TV_ALLOW_CTFTFFASPECVOTE) {
+		else */if (g_gametype.integer >= GT_TEAM && jp_tweakVote.integer & TV_ALLOW_CTFTFFASPECVOTE) {
 		}
 		else if (jp_tweakVote.integer & TV_ALLOW_SPECVOTE) {
 		}
@@ -2329,8 +2329,8 @@ void Cmd_CallVote_f(gentity_t *ent) {
 	}
 
 	/*
-	if ( level.gametype != GT_DUEL && level.gametype != GT_POWERDUEL && (ent->client->sess.sessionTeam == TEAM_SPECTATOR || (ent->client->sess.sessionTeam == TEAM_FREE && level.gametype >= GT_TEAM))) {
-	if (level.gametype >= GT_TEAM || !g_tweakVote.integer) {
+	if ( g_gametype.integer != GT_DUEL && g_gametype.integer != GT_POWERDUEL && (ent->client->sess.sessionTeam == TEAM_SPECTATOR || (ent->client->sess.sessionTeam == TEAM_FREE && g_gametype.integer >= GT_TEAM))) {
+	if (g_gametype.integer >= GT_TEAM || !g_tweakVote.integer) {
 	trap_SendServerCommand( ent-g_entities, va( "print \"%s\n\"", G_GetStringEdString( "MP_SVGAME", "NOSPECVOTE" ) ) );
 	return;
 	}
@@ -2392,7 +2392,7 @@ void Cmd_CallVote_f(gentity_t *ent) {
 		return;
 	}
 
-	if ((jp_tweakVote.integer & TV_MAPCHANGELOCKOUT) && !Q_stricmp(arg1, "map") && (level.gametype == GT_FFA || jp_raceMode.integer) && (level.startTime > (level.time - 1000 * 60 * 10))) { //Dont let a map vote be called within 10 mins of map load if we are in ffa
+	if ((jp_tweakVote.integer & TV_MAPCHANGELOCKOUT) && !Q_stricmp(arg1, "map") && (g_gametype.integer == GT_FFA || jp_raceMode.integer) && (level.startTime > (level.time - 1000 * 60 * 10))) { //Dont let a map vote be called within 10 mins of map load if we are in ffa
 		char timeStr[32];
 		TimeToString((1000 * 60 * 10 - (level.time - level.startTime)), timeStr, sizeof(timeStr), qtrue);
 		trap_SendServerCommand(ent - g_entities, va("print \"The server just changed to this map, please wait %s before calling a map vote.\n\"", timeStr));
@@ -2453,7 +2453,7 @@ void Cmd_CallVote_f(gentity_t *ent) {
 
 validVote:
 	vote = &validVoteStrings[i];
-	if (!(vote->validGT & (1 << level.gametype))) {
+	if (!(vote->validGT & (1 << g_gametype.integer))) {
 		trap_SendServerCommand(ent - g_entities, va("print \"%s is not applicable in this gametype.\n\"", arg1));
 		return;
 	}
@@ -3585,7 +3585,7 @@ void Cmd_Amlockteam_f(gentity_t *ent)
 	if (!G_AdminAllowed(ent, JAPRO_ACCOUNTFLAG_A_LOCKTEAM, qfalse, qfalse, "amLockTeam"))
 		return;
 
-	if (level.gametype >= GT_TEAM || level.gametype == GT_FFA)
+	if (g_gametype.integer >= GT_TEAM || g_gametype.integer == GT_FFA)
 	{
 		if (trap_Argc() != 2)
 		{
@@ -3683,7 +3683,7 @@ void Cmd_Amforceteam_f(gentity_t *ent)
 		return;
 	}
 
-	if (level.gametype >= GT_TEAM || level.gametype == GT_FFA)
+	if (g_gametype.integer >= GT_TEAM || g_gametype.integer == GT_FFA)
 	{
 		qboolean everyone = qfalse;
 		gclient_t *client;
@@ -3713,7 +3713,7 @@ void Cmd_Amforceteam_f(gentity_t *ent)
 
 		trap_Argv(2, teamname, sizeof(teamname));
 
-		if ((!Q_stricmp(teamname, "red") || !Q_stricmp(teamname, "r")) && level.gametype >= GT_TEAM)
+		if ((!Q_stricmp(teamname, "red") || !Q_stricmp(teamname, "r")) && g_gametype.integer >= GT_TEAM)
 		{
 			if (everyone)
 			{
@@ -3733,7 +3733,7 @@ void Cmd_Amforceteam_f(gentity_t *ent)
 				}
 			}
 		}
-		else if ((!Q_stricmp(teamname, "blue") || !Q_stricmp(teamname, "b")) && level.gametype >= GT_TEAM)
+		else if ((!Q_stricmp(teamname, "blue") || !Q_stricmp(teamname, "b")) && g_gametype.integer >= GT_TEAM)
 		{
 			if (everyone)
 			{
@@ -4316,7 +4316,7 @@ static void Cmd_Amkillvote_f(gentity_t *ent) {
 	//Overkill, but it's a surefire way to kill the vote =]
 	level.voteExecuteTime = 0;
 	level.votingGametype = qfalse;
-	level.votingGametypeTo = level.gametype;
+	level.votingGametypeTo = g_gametype.integer;
 	level.voteTime = 0;
 
 	level.voteDisplayString[0] = '\0';
@@ -4387,11 +4387,11 @@ void Cmd_Aminfo_f(gentity_t *ent)
 	}
 	/*if (g_allowSaberSwitch.integer)
 		Q_strcat(buf, sizeof(buf), "saber ");
-	if (g_allowFlagThrow.integer && ((level.gametype == GT_CTF) || g_rabbit.integer))
+	if (g_allowFlagThrow.integer && ((g_gametype.integer == GT_CTF) || g_rabbit.integer))
 		Q_strcat(buf, sizeof(buf), "throwFlag ");
 	if (g_allowTargetLaser.integer)
 		Q_strcat(buf, sizeof(buf), "+button15 (target laser) ");
-	if ((level.gametype >= GT_TEAM) && g_allowSpotting.integer)
+	if ((g_gametype.integer >= GT_TEAM) && g_allowSpotting.integer)
 		Q_strcat(buf, sizeof(buf), "spot ");
 	if (g_allowGrapple.integer)
 		Q_strcat(buf, sizeof(buf), "+button12 (grapple) ");
@@ -4690,7 +4690,7 @@ static void DoEmote(gentity_t *ent, int anim, qboolean freeze, qboolean nosaber,
 		trap_SendServerCommand(ent - g_entities, "print \"^7Emotes not allowed in racemode!\n\"");
 		return;
 	}
-	if (level.gametype != GT_FFA) {
+	if (g_gametype.integer != GT_FFA) {
 		trap_SendServerCommand(ent - g_entities, "print \"^7Emotes not allowed in this gametype!\n\"");
 		return;
 	}

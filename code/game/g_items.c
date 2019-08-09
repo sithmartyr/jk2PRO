@@ -1718,7 +1718,57 @@ void Use_Item( gentity_t *ent, gentity_t *other, gentity_t *activator ) {
 }
 
 //======================================================================
+qboolean G_FreeAmmoEntity(gitem_t *item) {
+	qboolean freeEntity = qfalse;
+	int wDisable = g_weaponDisable.integer;
+	int startingWeapons = jp_startingWeapons.integer;
 
+	switch (item->giTag)
+	{
+	case AMMO_BLASTER:
+		if (/*(wDisable & (1 << WP_BRYAR_OLD)) && */(wDisable & (1 << WP_BLASTER)) && /*!(startingWeapons & (1 << WP_BRYAR_OLD)) && */!(startingWeapons & (1 << WP_BLASTER))) {
+			freeEntity = qtrue;
+		}
+		break;
+	case AMMO_POWERCELL:
+		if ((wDisable & (1 << WP_DISRUPTOR)) && (wDisable & (1 << WP_BOWCASTER)) && !(startingWeapons & (1 << WP_DISRUPTOR)) && !(startingWeapons & (1 << WP_BOWCASTER))) {
+			freeEntity = qtrue;
+		}
+		break;
+	case AMMO_METAL_BOLTS:
+		if ((wDisable & (1 << WP_REPEATER)) && (wDisable & (1 << WP_FLECHETTE)) && !(startingWeapons & (1 << WP_REPEATER)) && !(startingWeapons & (1 << WP_FLECHETTE))) {
+			freeEntity = qtrue;
+		}
+		break;
+	case AMMO_ROCKETS:
+		if ((wDisable & (1 << WP_ROCKET_LAUNCHER)) && !(startingWeapons & (1 << WP_ROCKET_LAUNCHER))) {
+			freeEntity = qtrue;
+		}
+		break;
+	case AMMO_THERMAL:
+		if ((wDisable & (1 << WP_THERMAL)) && !(startingWeapons & (1 << WP_THERMAL))) {
+			freeEntity = qtrue;
+		}
+		break;
+	case AMMO_TRIPMINE:
+		if ((wDisable & (1 << WP_TRIP_MINE)) && !(startingWeapons & (1 << WP_TRIP_MINE))) {
+			freeEntity = qtrue;
+		}
+		break;
+	case AMMO_DETPACK:
+		if ((wDisable & (1 << WP_DET_PACK)) && !(startingWeapons & (1 << WP_DET_PACK))) {
+			freeEntity = qtrue;
+		}
+		break;
+	default:
+		freeEntity = qtrue;
+		break;
+	}
+	return freeEntity;
+	//if (freeEntity) {
+	//G_FreeEntity( ent );
+	//}
+}
 /*
 ================
 FinishSpawningItem

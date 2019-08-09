@@ -594,6 +594,71 @@ void CVU_TweakWeapons(void) {
 
 void GiveClientWeapons(gclient_t *client);
 
+qboolean G_FreeAmmoEntity(gitem_t *item);
+static void RemoveWeaponsFromMap(void) {
+	int i;
+	gentity_t	*ent;
+	int wDisable = g_weaponDisable.integer;
+
+	for (i = 0; i < level.num_entities; i++) {
+		ent = &g_entities[i];
+
+		if (ent->inuse && ent->item) {
+			if ((ent->item->giType == IT_WEAPON) && wDisable & (1 << ent->item->giTag)) {
+				ent->think = 0;
+				ent->nextthink = 0;
+				ent->s.eFlags |= EF_NODRAW;
+				//ent->s.eFlags |= EF_DROPPEDWEAPON; //sad hack
+				ent->r.svFlags |= SVF_NOCLIENT;
+				ent->r.contents = 0;
+				//ent->inuse = qfalse;
+			}
+			else if ((ent->item->giType == IT_AMMO) && wDisable && G_FreeAmmoEntity(ent->item)) {
+				ent->think = 0;
+				ent->nextthink = 0;
+				ent->s.eFlags |= EF_NODRAW;
+				//ent->s.eFlags |= EF_DROPPEDWEAPON; //sad hack
+				ent->r.svFlags |= SVF_NOCLIENT;
+				ent->r.contents = 0;
+				//ent->inuse = qfalse;
+			}
+		}
+	}
+}
+
+static void SpawnWeaponsInMap(void) {
+	int i;
+	gentity_t	*ent;
+	int wDisable = g_weaponDisable.integer;
+
+	for (i = 0; i < level.num_entities; i++) {
+		ent = &g_entities[i];
+
+		if (ent->inuse && ent->item) { //eh?
+			if ((ent->item->giType == IT_WEAPON) && !(wDisable & (1 << ent->item->giTag))) {
+				ent->think = FinishSpawningItem;
+				ent->nextthink = level.time + FRAMETIME * 2;
+				ent->s.eFlags &= ~EF_NODRAW;
+				//ent->s.eFlags &= ~EF_DROPPEDWEAPON; //sad hack
+				ent->r.svFlags &= ~SVF_NOCLIENT;
+				//ent->r.contents = CONTENTS_TRIGGER;
+				//ent->inuse = qtrue;
+				//trap->Print("spawning wep\n");
+				//ent->spawnedBefore = qfalse;
+			}
+			else if (ent->item->giType == IT_AMMO && !(wDisable && G_FreeAmmoEntity(ent->item))) {
+				ent->think = FinishSpawningItem;
+				ent->nextthink = level.time + FRAMETIME * 2;
+				ent->s.eFlags &= ~EF_NODRAW;
+				//ent->s.eFlags &= ~EF_DROPPEDWEAPON; //sad hack
+				ent->r.svFlags &= ~SVF_NOCLIENT;
+				//ent->r.contents = CONTENTS_TRIGGER;
+				//ent->inuse = qtrue;
+			}
+		}
+	}
+}
+
 static void RemoveWeaponsFromPlayer(gentity_t *ent) {
 	int disallowedWeaps = g_weaponDisable.integer & ~jp_startingWeapons.integer;
 
@@ -605,6 +670,20 @@ static void RemoveWeaponsFromPlayer(gentity_t *ent) {
 	if (!(ent->client->ps.stats[STAT_WEAPONS] & (1 >> ent->client->ps.weapon))) { //If our weapon selected does not appear in our weapons list
 		ent->client->ps.weapon = WP_NONE; //who knows why this does shit even if our current weapon is fine.
 	}
+}
+
+void CVU_WeaponDisable(void) {
+	int i;
+	gentity_t *ent;
+
+	for (i = 0; i < level.numConnectedClients; i++) { //For each player, call removeweapons, and addweapons.
+		ent = &g_entities[level.sortedClients[i]];
+		if (ent->inuse && ent->client && !ent->client->sess.raceMode) {
+			RemoveWeaponsFromPlayer(ent);
+		}
+	}
+	RemoveWeaponsFromMap();
+	SpawnWeaponsInMap();
 }
 
 void CVU_StartingWeapons(void) {
@@ -653,6 +732,73 @@ void Svcmd_ToggleTweakWeapons_f(void) {
 			? "^2Enabled" : "^1Disabled"));
 
 		CVU_TweakWeapons();
+	}
+}
+
+static bitInfo_T startingWeapons[] = { // MAX_WEAPON_TWEAKS tweaks (24)
+	{ "" },//0
+	{ "Stun Baton" },//1
+	//{ "Melee" },
+	{ "Saber" },//2
+	{ "Bryar Pistol" },//3
+	{ "Blaster" },//4
+	{ "Disruptor" },//5
+	{ "Bowcaster" },//6
+	{ "Repeater" },//7
+	{ "Demp2" },//8
+	{ "Flechette" },//9
+	{ "Rocket Launcher" },//10
+	{ "Thermal" },//11
+	{ "Trip Mine" },//12
+	{ "Det Pack" },//13
+	//{ "Concussion Rifle" },//15
+	//{ "Old Bryar Pistol" }//16
+};
+static const int MAX_STARTING_WEAPONS = ARRAY_LEN(startingWeapons);
+
+void Svcmd_ToggleStartingWeapons_f(void) {
+	if (trap_Argc() == 1) {
+		int i = 0;
+		for (i = 0; i < MAX_STARTING_WEAPONS; i++) {
+			if ((jp_startingWeapons.integer & (1 << i))) {
+				Com_Printf("%2d [X] %s\n", i, startingWeapons[i].string);
+			}
+			else {
+				Com_Printf("%2d [ ] %s\n", i, startingWeapons[i].string);
+			}
+		}
+		return;
+	}
+	else {
+		char arg[8] = { 0 };
+		int index;
+		const uint32_t mask = (1 << MAX_STARTING_WEAPONS) - 1;
+
+		trap_Argv(1, arg, sizeof(arg));
+		index = atoi(arg);
+
+		//DM Start: New -1 toggle all options.
+		if (index < -1 || index >= MAX_STARTING_WEAPONS) {  //Whereas we need to allow -1 now, we must change the limit for this value.
+			Com_Printf("startingWeapons: Invalid range: %i [0-%i, or -1 for toggle all]\n", index, MAX_STARTING_WEAPONS - 1);
+			return;
+		}
+
+		if (index == -1) {
+			for (index = 0; index < MAX_STARTING_WEAPONS; index++) {  //Read every tweak option and set it to the opposite of what it is currently set to.
+				trap_Cvar_Set("jp_startingWeapons", va("%i", (1 << index) ^ (jp_startingWeapons.integer & mask)));
+				trap_Cvar_Update(&jp_startingWeapons);
+				Com_Printf("%s %s^7\n", startingWeapons[index].string, ((jp_startingWeapons.integer & (1 << index)) ? "^2Enabled" : "^1Disabled"));
+				CVU_StartingWeapons();
+			}
+		} //DM End: New -1 toggle all options.
+
+		trap_Cvar_Set("jp_startingWeapons", va("%i", (1 << index) ^ (jp_startingWeapons.integer & mask)));
+		trap_Cvar_Update(&jp_startingWeapons);
+
+		Com_Printf("%s %s^7\n", startingWeapons[index].string, ((jp_startingWeapons.integer & (1 << index))
+			? "^2Enabled" : "^1Disabled"));
+
+		CVU_StartingWeapons();
 	}
 }
 
@@ -839,6 +985,11 @@ qboolean	ConsoleCommand( void ) {
 
 	if (Q_stricmp(cmd, "tweakweapons") == 0) {
 		Svcmd_ToggleTweakWeapons_f();
+		return qtrue;
+	}
+
+	if (Q_stricmp(cmd, "startingweapons") == 0) {
+		Svcmd_ToggleStartingWeapons_f();
 		return qtrue;
 	}
 

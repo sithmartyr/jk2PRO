@@ -1802,12 +1802,12 @@ void GiveClientWeapons(gclient_t *client) {
 		client->ps.stats[STAT_WEAPONS] |= (1 << WP_BRYAR_OLD);*/
 
 	if (!(jp_startingWeapons.integer & (1 << 0))) { //oh right, startingWeapons bit 1 gives more ammo
-		/*if (jp_startingWeapons.integer & (1 << WP_BLASTER) || jp_startingWeapons.integer & (1 << WP_BRYAR_OLD))
-			client->ps.ammo[AMMO_BLASTER] = 300;*/
+		if (jp_startingWeapons.integer & (1 << WP_BLASTER)/* || jp_startingWeapons.integer & (1 << WP_BRYAR_OLD)*/)
+			client->ps.ammo[AMMO_BLASTER] = 300;
 		if (jp_startingWeapons.integer & (1 << WP_DISRUPTOR) || jp_startingWeapons.integer & (1 << WP_BOWCASTER) || jp_startingWeapons.integer & (1 << WP_DEMP2))
 			client->ps.ammo[AMMO_POWERCELL] = 200;
-		/*if (jp_startingWeapons.integer & (1 << WP_REPEATER) || jp_startingWeapons.integer & (1 << WP_FLECHETTE) || jp_startingWeapons.integer & (1 << WP_CONCUSSION))
-			client->ps.ammo[AMMO_METAL_BOLTS] = 200;*/
+		if (jp_startingWeapons.integer & (1 << WP_REPEATER) || jp_startingWeapons.integer & (1 << WP_FLECHETTE)/* || jp_startingWeapons.integer & (1 << WP_CONCUSSION)*/)
+			client->ps.ammo[AMMO_METAL_BOLTS] = 200;
 		if (jp_startingWeapons.integer & (1 << WP_ROCKET_LAUNCHER))
 			client->ps.ammo[AMMO_ROCKETS] = 2;
 		if (jp_startingWeapons.integer & (1 << WP_DET_PACK))
@@ -2044,7 +2044,8 @@ void ClientSpawn(gentity_t *ent) {
 		if (g_gametype.integer == GT_HOLOCRON)
 		{
 			//always get free saber level 1 in holocron
-			client->ps.stats[STAT_WEAPONS] |= ( 1 << WP_SABER );	//these are precached in g_items, ClearRegisteredItems()
+			if ((jp_startingWeapons.integer & (1 << WP_SABER)) || (g_gametype.integer == GT_SAGA))
+				client->ps.stats[STAT_WEAPONS] |= ( 1 << WP_SABER );	//these are precached in g_items, ClearRegisteredItems()
 		}
 		else
 		{
@@ -2054,17 +2055,25 @@ void ClientSpawn(gentity_t *ent) {
 			}
 			else
 			{ //if you don't have saber attack rank then you don't get a saber
-				client->ps.stats[STAT_WEAPONS] |= (1 << WP_STUN_BATON);
+				if ((jp_startingWeapons.integer & (1 << WP_SABER)) || (g_gametype.integer == GT_SAGA))
+					client->ps.stats[STAT_WEAPONS] |= (1 << WP_STUN_BATON);
 			}
 		}
 		
-		if (!wDisable || !(wDisable & (1 << WP_BRYAR_PISTOL)))
+		/*if (!wDisable || !(wDisable & (1 << WP_BRYAR_PISTOL)))
 		{
 			client->ps.stats[STAT_WEAPONS] |= ( 1 << WP_BRYAR_PISTOL );
 		}
 		else if (g_gametype.integer == GT_JEDIMASTER)
 		{
 			client->ps.stats[STAT_WEAPONS] |= ( 1 << WP_BRYAR_PISTOL );
+		}*/
+
+		if (g_gametype.integer != GT_SAGA) {
+			if (!client->sess.raceMode)
+			{ //loda fixme.. this can just be set?
+				GiveClientWeapons(client);
+			}
 		}
 
 		if (g_gametype.integer == GT_JEDIMASTER)
@@ -2073,13 +2082,16 @@ void ClientSpawn(gentity_t *ent) {
 			client->ps.stats[STAT_WEAPONS] |= (1 << WP_STUN_BATON);
 		}
 
-		if (client->ps.stats[STAT_WEAPONS] & (1 << WP_BRYAR_PISTOL))
+		/*if (client->ps.stats[STAT_WEAPONS] & (1 << WP_BRYAR_PISTOL))
 		{
 			client->ps.weapon = WP_BRYAR_PISTOL;
 		}
-		else if (client->ps.stats[STAT_WEAPONS] & (1 << WP_SABER))
+		else */if (client->ps.stats[STAT_WEAPONS] & (1 << WP_SABER))
 		{
 			client->ps.weapon = WP_SABER;
+		}
+		else if (client->ps.stats[STAT_WEAPONS] & (1 << WP_BRYAR_PISTOL)) { //Added this here instead, so that we spawn with saber first.
+			client->ps.weapon = WP_BRYAR_PISTOL;
 		}
 		else
 		{
@@ -2180,22 +2192,31 @@ void ClientSpawn(gentity_t *ent) {
 			{
 				if (client->ps.fd.forcePowerLevel[FP_SABERATTACK])
 				{
-					client->ps.stats[STAT_WEAPONS] |= ( 1 << WP_SABER );	//these are precached in g_items, ClearRegisteredItems()
+					if ((jp_startingWeapons.integer & (1 << WP_SABER)) || (g_gametype.integer == GT_SAGA))
+						client->ps.stats[STAT_WEAPONS] |= ( 1 << WP_SABER );	//these are precached in g_items, ClearRegisteredItems()
 				}
 				else
 				{ //if you don't have saber attack rank then you don't get a saber
-					client->ps.stats[STAT_WEAPONS] |= (1 << WP_STUN_BATON);
+					if ((jp_startingWeapons.integer & (1 << WP_SABER)) || (g_gametype.integer == GT_SAGA))
+						client->ps.stats[STAT_WEAPONS] |= (1 << WP_STUN_BATON);
 				}
 			}
 
-			if (!wDisable || !(wDisable & (1 << WP_BRYAR_PISTOL)))
+			if (g_gametype.integer != GT_SAGA) {
+				if (!client->sess.raceMode)
+				{ //loda fixme.. this can just be set?
+					GiveClientWeapons(client);
+				}
+			}
+
+		/*	if (!wDisable || !(wDisable & (1 << WP_BRYAR_PISTOL)))
 			{
 				client->ps.stats[STAT_WEAPONS] |= ( 1 << WP_BRYAR_PISTOL );
 			}
 			else if (g_gametype.integer == GT_JEDIMASTER)
 			{
 				client->ps.stats[STAT_WEAPONS] |= ( 1 << WP_BRYAR_PISTOL );
-			}
+			}*/
 
 			if (g_gametype.integer == GT_JEDIMASTER)
 			{
@@ -2203,13 +2224,16 @@ void ClientSpawn(gentity_t *ent) {
 				client->ps.stats[STAT_WEAPONS] |= (1 << WP_STUN_BATON);
 			}
 
-			if (client->ps.stats[STAT_WEAPONS] & (1 << WP_BRYAR_PISTOL))
+			/*if (client->ps.stats[STAT_WEAPONS] & (1 << WP_BRYAR_PISTOL))
 			{
 				client->ps.weapon = WP_BRYAR_PISTOL;
 			}
-			else if (client->ps.stats[STAT_WEAPONS] & (1 << WP_SABER))
+			else */if (client->ps.stats[STAT_WEAPONS] & (1 << WP_SABER))
 			{
 				client->ps.weapon = WP_SABER;
+			}
+			else if (client->ps.stats[STAT_WEAPONS] & (1 << WP_BRYAR_PISTOL)) { //Added this here instead, so that we spawn with saber first.
+				client->ps.weapon = WP_BRYAR_PISTOL;
 			}
 			else
 			{
@@ -2232,8 +2256,8 @@ void ClientSpawn(gentity_t *ent) {
 		client->ps.stats[STAT_HOLDABLE_ITEMS] = 0;
 		client->ps.stats[STAT_HOLDABLE_ITEM] = 0;
 	}
-
-	client->ps.ammo[AMMO_BLASTER] = 100; //ammoData[AMMO_BLASTER].max; //100 seems fair.
+	if (!jp_startingWeapons.integer)
+		client->ps.ammo[AMMO_BLASTER] = 100; //ammoData[AMMO_BLASTER].max; //100 seems fair.
 //	client->ps.ammo[AMMO_POWERCELL] = ammoData[AMMO_POWERCELL].max;
 //	client->ps.ammo[AMMO_FORCE] = ammoData[AMMO_FORCE].max;
 //	client->ps.ammo[AMMO_METAL_BOLTS] = ammoData[AMMO_METAL_BOLTS].max;
@@ -2289,9 +2313,12 @@ void ClientSpawn(gentity_t *ent) {
 		trap_LinkEntity (ent);
 
 		// force the base weapon up
-		client->ps.weapon = WP_BRYAR_PISTOL;
-		client->ps.weaponstate = FIRST_WEAPON;
-
+		//client->ps.weapon = WP_BRYAR_PISTOL;//Added this here instead, so that we spawn with saber first.
+		//client->ps.weaponstate = FIRST_WEAPON;
+		if (client->ps.weapon <= WP_NONE)
+		{
+			client->ps.weapon = WP_BRYAR_PISTOL;
+		}
 	}
 
 	// don't allow full run speed for a bit
