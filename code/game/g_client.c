@@ -2086,16 +2086,13 @@ void ClientSpawn(gentity_t *ent) {
 			client->ps.stats[STAT_WEAPONS] |= (1 << WP_STUN_BATON);
 		}
 
-		/*if (client->ps.stats[STAT_WEAPONS] & (1 << WP_BRYAR_PISTOL))
+		if (client->ps.stats[STAT_WEAPONS] & (1 << WP_BRYAR_PISTOL))
 		{
 			client->ps.weapon = WP_BRYAR_PISTOL;
 		}
-		else */if (client->ps.stats[STAT_WEAPONS] & (1 << WP_SABER))
+		else if (client->ps.stats[STAT_WEAPONS] & (1 << WP_SABER))
 		{
 			client->ps.weapon = WP_SABER;
-		}
-		else if (client->ps.stats[STAT_WEAPONS] & (1 << WP_BRYAR_PISTOL)) { //Added this here instead, so that we spawn with saber first.
-			client->ps.weapon = WP_BRYAR_PISTOL;
 		}
 		else
 		{
@@ -2228,16 +2225,13 @@ void ClientSpawn(gentity_t *ent) {
 				client->ps.stats[STAT_WEAPONS] |= (1 << WP_STUN_BATON);
 			}
 
-			/*if (client->ps.stats[STAT_WEAPONS] & (1 << WP_BRYAR_PISTOL))
+			if (client->ps.stats[STAT_WEAPONS] & (1 << WP_BRYAR_PISTOL))
 			{
 				client->ps.weapon = WP_BRYAR_PISTOL;
 			}
-			else */if (client->ps.stats[STAT_WEAPONS] & (1 << WP_SABER))
+			else if (client->ps.stats[STAT_WEAPONS] & (1 << WP_SABER))
 			{
 				client->ps.weapon = WP_SABER;
-			}
-			else if (client->ps.stats[STAT_WEAPONS] & (1 << WP_BRYAR_PISTOL)) { //Added this here instead, so that we spawn with saber first.
-				client->ps.weapon = WP_BRYAR_PISTOL;
 			}
 			else
 			{
