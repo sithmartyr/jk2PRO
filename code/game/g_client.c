@@ -1805,7 +1805,7 @@ void GiveClientWeapons(gclient_t *client) {
 		client->ps.stats[STAT_WEAPONS] |= (1 << WP_BRYAR_OLD);*/
 
 	if (!(jp_startingWeapons.integer & (1 << 0))) { //oh right, startingWeapons bit 1 gives more ammo
-		if (jp_startingWeapons.integer & (1 << WP_BLASTER)/* || jp_startingWeapons.integer & (1 << WP_BRYAR_OLD)*/)
+		if (jp_startingWeapons.integer & (1 << WP_BLASTER) || jp_startingWeapons.integer & (1 << WP_BRYAR_PISTOL))
 			client->ps.ammo[AMMO_BLASTER] = 300;
 		if (jp_startingWeapons.integer & (1 << WP_DISRUPTOR) || jp_startingWeapons.integer & (1 << WP_BOWCASTER) || jp_startingWeapons.integer & (1 << WP_DEMP2))
 			client->ps.ammo[AMMO_POWERCELL] = 200;

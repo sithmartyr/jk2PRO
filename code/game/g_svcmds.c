@@ -735,8 +735,8 @@ void Svcmd_ToggleTweakWeapons_f(void) {
 	}
 }
 
-static bitInfo_T startingWeapons[] = { // MAX_WEAPON_TWEAKS tweaks (24)
-	{ "" },//0
+static bitInfo_T weaponDisable[] = { // MAX_WEAPON_TWEAKS tweaks (24)
+	{ "NONE" },//0
 	{ "Stun Baton" },//1
 	//{ "Melee" },
 	{ "Saber" },//2
@@ -751,15 +751,77 @@ static bitInfo_T startingWeapons[] = { // MAX_WEAPON_TWEAKS tweaks (24)
 	{ "Thermal" },//11
 	{ "Trip Mine" },//12
 	{ "Det Pack" },//13
-	//{ "Concussion Rifle" },//15
-	//{ "Old Bryar Pistol" }//16
+	//{ "Concussion Rifle" },
+	//{ "Old Bryar Pistol" },
+	{ "Emplaced Gun" },//14
+	{ "Turret" }//15
+};
+static const int MAX_WEAPON_DISABLES = ARRAY_LEN(weaponDisable);
+void Svcmd_ToggleWeaponDisable_f(void) {
+	if (trap_Argc() == 1) {
+		int i = 1;
+		for (i = 1; i < MAX_WEAPON_DISABLES; i++) {
+			if ((g_weaponDisable.integer & (1 << i))) {
+				Com_Printf("%2d [ ] %s\n", i, weaponDisable[i].string);
+			}
+			else {
+				Com_Printf("%2d [X] %s\n", i, weaponDisable[i].string);
+			}
+		}
+		return;
+	}
+	else {
+		char arg[8] = { 0 };
+		int index;
+		const uint32_t mask = (1 << MAX_WEAPON_DISABLES) - 1;
+
+		trap_Argv(1, arg, sizeof(arg));
+		index = atoi(arg);
+
+		//DM Start: New -1 toggle all options.
+		if (index < -1 || index >= MAX_WEAPON_DISABLES) {  //Whereas we need to allow -1 now, we must change the limit for this value.
+			Com_Printf("weaponDisable: Invalid range: %i [0-%i, or -1 for toggle all]\n", index, MAX_WEAPON_DISABLES - 1);
+			return;
+		}
+
+		if (index == -1) {
+			for (index = 1; index < MAX_WEAPON_DISABLES; index++) {  //Read every tweak option and set it to the opposite of what it is currently set to.
+				trap_Cvar_Set("g_weaponDisable", va("%i", (1 << index) ^ (g_weaponDisable.integer & mask)));
+				trap_Cvar_Update(&g_weaponDisable);
+				Com_Printf("%s %s^7\n", weaponDisable[index].string, ((g_weaponDisable.integer & (1 << index)) ? "^1Disabled" : "^2Enabled"));
+			}
+		}
+		else {
+			trap_Cvar_Set("g_weaponDisable", va("%i", (1 << index) ^ (g_weaponDisable.integer & mask)));
+			trap_Cvar_Update(&g_weaponDisable);
+			Com_Printf("%s %s^7\n", weaponDisable[index].string, ((g_weaponDisable.integer & (1 << index)) ? "^1Disabled" : "^2Enabled"));
+		}
+		//DM End: New -1 toggle all options.
+	}
+}
+
+static bitInfo_T startingWeapons[] = { // MAX_WEAPON_TWEAKS tweaks (24)
+	{ "NONE" },//0
+	{ "Stun Baton" },//1
+	{ "Saber" },//2
+	{ "Bryar Pistol" },//3
+	{ "Blaster" },//4
+	{ "Disruptor" },//5
+	{ "Bowcaster" },//6
+	{ "Repeater" },//7
+	{ "Demp2" },//8
+	{ "Flechette" },//9
+	{ "Rocket Launcher" },//10
+	{ "Thermal" },//11
+	{ "Trip Mine" },//12
+	{ "Det Pack" },//13
 };
 static const int MAX_STARTING_WEAPONS = ARRAY_LEN(startingWeapons);
 
 void Svcmd_ToggleStartingWeapons_f(void) {
 	if (trap_Argc() == 1) {
-		int i = 0;
-		for (i = 0; i < MAX_STARTING_WEAPONS; i++) {
+		int i = 1;
+		for (i = 1; i < MAX_STARTING_WEAPONS; i++) {
 			if ((jp_startingWeapons.integer & (1 << i))) {
 				Com_Printf("%2d [X] %s\n", i, startingWeapons[i].string);
 			}
@@ -784,21 +846,96 @@ void Svcmd_ToggleStartingWeapons_f(void) {
 		}
 
 		if (index == -1) {
-			for (index = 0; index < MAX_STARTING_WEAPONS; index++) {  //Read every tweak option and set it to the opposite of what it is currently set to.
+			for (index = 1; index < MAX_STARTING_WEAPONS; index++) {  //Read every tweak option and set it to the opposite of what it is currently set to.
 				trap_Cvar_Set("jp_startingWeapons", va("%i", (1 << index) ^ (jp_startingWeapons.integer & mask)));
 				trap_Cvar_Update(&jp_startingWeapons);
 				Com_Printf("%s %s^7\n", startingWeapons[index].string, ((jp_startingWeapons.integer & (1 << index)) ? "^2Enabled" : "^1Disabled"));
 				CVU_StartingWeapons();
 			}
-		} //DM End: New -1 toggle all options.
+		}
+		else {
+			trap_Cvar_Set("jp_startingWeapons", va("%i", (1 << index) ^ (jp_startingWeapons.integer & mask)));
+			trap_Cvar_Update(&jp_startingWeapons);
+			Com_Printf("%s %s^7\n", startingWeapons[index].string, ((jp_startingWeapons.integer & (1 << index)) ? "^2Enabled" : "^1Disabled"));
+			CVU_StartingWeapons();
+		}
+		//DM End: New -1 toggle all options.
+	}
+}
 
-		trap_Cvar_Set("jp_startingWeapons", va("%i", (1 << index) ^ (jp_startingWeapons.integer & mask)));
-		trap_Cvar_Update(&jp_startingWeapons);
+static bitInfo_T forcePowerDisable[] = { // MAX_WEAPON_TWEAKS tweaks (24)
+	{ "HEAL" },//0
+	{ "JUMP" },//1
+	{ "SPEED" },//2
+	{ "PUSH" },//3
+	{ "PULL" },//4
+	{ "MINDTRICK" },//5
+	{ "GRIP" },//6
+	{ "LIGHTNING" },//7
+	{ "DARK RAGE" },//8
+	{ "PROTECT" },//9
+	{ "ABSORB" },//10
+	{ "TEAM HEAL" },//11
+	{ "TEAM REPLENISH" },//12
+	{ "DRAIN" },//13
+	{ "SEEING" },//14
+	{ "SABER ATTACK" },//15
+	{ "SABER DEFEND" },//16
+	{ "SABER THROW" }//17
+};
+static const int MAX_FORCEPOWER_DISABLES = ARRAY_LEN(forcePowerDisable);
 
-		Com_Printf("%s %s^7\n", startingWeapons[index].string, ((jp_startingWeapons.integer & (1 << index))
-			? "^2Enabled" : "^1Disabled"));
+void Svcmd_ToggleForceDisable_f(void) {
+	if (trap_Argc() == 1) {
+		int i = 0;
+		for (i = 0; i < MAX_FORCEPOWER_DISABLES; i++) {
+			if ((g_forcePowerDisable.integer & (1 << i))) {
+				Com_Printf("%2d [ ] %s\n", i, forcePowerDisable[i].string);
+			}
+			else {
+				Com_Printf("%2d [X] %s\n", i, forcePowerDisable[i].string);
+			}
+		}
+		return;
+	}
+	else {
+		char arg[8] = { 0 };
+		int index;
+		const uint32_t mask = (1 << MAX_FORCEPOWER_DISABLES) - 1;
 
-		CVU_StartingWeapons();
+		trap_Argv(1, arg, sizeof(arg));
+		index = atoi(arg);
+
+		/*if (index < 0 || index >= MAX_FORCEPOWER_DISABLES) {
+			Com_Printf("forcePowerDisable: Invalid range: %i [0, %i]\n", index, MAX_FORCEPOWER_DISABLES - 1);
+			return;
+		}
+
+		trap_Cvar_Set("g_forcePowerDisable", va("%i", (1 << index) ^ (g_forcePowerDisable.integer & mask)));
+		trap_Cvar_Update(&g_forcePowerDisable);
+
+		Com_Printf("%s %s^7\n", forcePowerDisable[index].string, ((g_forcePowerDisable.integer & (1 << index))
+			? "^1Disabled" : "^2Enabled"));*/
+
+		//DM Start: New -1 toggle all options.
+		if (index < -1 || index >= MAX_FORCEPOWER_DISABLES) {  //Whereas we need to allow -1 now, we must change the limit for this value.
+			Com_Printf("forcePowerDisable: Invalid range: %i [0-%i, or -1 for toggle all]\n", index, MAX_FORCEPOWER_DISABLES - 1);
+			return;
+		}
+
+		if (index == -1) {
+			for (index = 0; index < MAX_FORCEPOWER_DISABLES; index++) {  //Read every tweak option and set it to the opposite of what it is currently set to.
+				trap_Cvar_Set("g_forcePowerDisable", va("%i", (1 << index) ^ (g_forcePowerDisable.integer & mask)));
+				trap_Cvar_Update(&g_forcePowerDisable);
+				Com_Printf("%s %s^7\n", forcePowerDisable[index].string, ((g_forcePowerDisable.integer & (1 << index)) ? "^1Disabled" : "^2Enabled"));
+			}
+		}
+		else {
+			trap_Cvar_Set("g_forcePowerDisable", va("%i", (1 << index) ^ (g_forcePowerDisable.integer & mask)));
+			trap_Cvar_Update(&g_forcePowerDisable);
+			Com_Printf("%s %s^7\n", forcePowerDisable[index].string, ((g_forcePowerDisable.integer & (1 << index)) ? "^1Disabled" : "^2Enabled"));
+		}
+		//DM End: New -1 toggle all options.
 	}
 }
 
@@ -985,6 +1122,16 @@ qboolean	ConsoleCommand( void ) {
 
 	if (Q_stricmp(cmd, "tweakweapons") == 0) {
 		Svcmd_ToggleTweakWeapons_f();
+		return qtrue;
+	}
+	
+	if (Q_stricmp(cmd, "toggleweapons") == 0) {
+		Svcmd_ToggleWeaponDisable_f();
+		return qtrue;
+	}
+
+	if (Q_stricmp(cmd, "toggleforce") == 0) {
+		Svcmd_ToggleForceDisable_f();
 		return qtrue;
 	}
 
