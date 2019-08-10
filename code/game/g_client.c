@@ -1774,6 +1774,9 @@ void GiveClientWeapons(gclient_t *client) {
 		client->ps.stats[STAT_WEAPONS] |= (1 << WP_STUN_BATON);
 	/*if (jp_startingWeapons.integer & (1 << WP_MELEE))
 		client->ps.stats[STAT_WEAPONS] |= (1 << WP_MELEE);*/
+	//DM - jk2pro - completely experimental meme
+	if (jp_startingWeapons.integer & (1 << WP_SABER))
+		client->ps.stats[STAT_WEAPONS] |= (1 << WP_SABER);
 	if (jp_startingWeapons.integer & (1 << WP_BRYAR_PISTOL))
 		client->ps.stats[STAT_WEAPONS] |= (1 << WP_BRYAR_PISTOL);
 	if (jp_startingWeapons.integer & (1 << WP_BLASTER))
@@ -2051,7 +2054,8 @@ void ClientSpawn(gentity_t *ent) {
 		{
 			if (client->ps.fd.forcePowerLevel[FP_SABERATTACK])
 			{
-				client->ps.stats[STAT_WEAPONS] |= ( 1 << WP_SABER );	//these are precached in g_items, ClearRegisteredItems()
+				if ((jp_startingWeapons.integer & (1 << WP_SABER)) || (g_gametype.integer == GT_SAGA))
+					client->ps.stats[STAT_WEAPONS] |= ( 1 << WP_SABER );	//these are precached in g_items, ClearRegisteredItems()
 			}
 			else
 			{ //if you don't have saber attack rank then you don't get a saber
