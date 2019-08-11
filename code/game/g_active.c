@@ -1475,21 +1475,6 @@ void ClientThink_real( gentity_t *ent ) {
 			G_AddEvent(ent, EV_PRIVATE_DUEL, 0);
 			G_AddEvent(duelAgainst, EV_PRIVATE_DUEL, 0);
 
-			//Winner gets full health.. providing he's still alive
-			if (ent->health > 0 && ent->client->ps.stats[STAT_HEALTH] > 0)
-			{
-				if (ent->health < ent->client->ps.stats[STAT_MAX_HEALTH])
-				{
-					ent->client->ps.stats[STAT_HEALTH] = ent->health = ent->client->ps.stats[STAT_MAX_HEALTH];
-				}
-
-				if (g_spawnInvulnerability.integer)
-				{
-					ent->client->ps.eFlags |= EF_INVULNERABLE;
-					ent->client->invulnerableTimer = level.time + g_spawnInvulnerability.integer;
-				}
-			}
-
 			/*
 			trap_SendServerCommand( ent-g_entities, va("print \"%s" S_COLOR_WHITE " %s\n\"", ent->client->pers.netname, G_GetStripEdString("SVINGAME", "PLDUELWINNER")) );
 			trap_SendServerCommand( duelAgainst-g_entities, va("print \"%s" S_COLOR_WHITE " %s\n\"", ent->client->pers.netname, G_GetStripEdString("SVINGAME", "PLDUELWINNER")) );
@@ -1505,6 +1490,21 @@ void ClientThink_real( gentity_t *ent ) {
 			{ //it was a draw, because we both managed to die in the same frame
 				trap_SendServerCommand( -1, va("cp \"%s\n\"", G_GetStripEdString("SVINGAME", "PLDUELTIE")) );
 				trap_SendServerCommand(-1, va("print \"%s^7 %s %s^7! (Saber)\n\"", ent->client->pers.netname, G_GetStripEdString("MP_SVGAME", "PLDUELTIE"), duelAgainst->client->pers.netname));
+			}
+
+			//Winner gets full health.. providing he's still alive
+			if (ent->health > 0 && ent->client->ps.stats[STAT_HEALTH] > 0)
+			{
+				if (ent->health < ent->client->ps.stats[STAT_MAX_HEALTH])
+				{
+					ent->client->ps.stats[STAT_HEALTH] = ent->health = ent->client->ps.stats[STAT_MAX_HEALTH];
+				}
+
+				if (g_spawnInvulnerability.integer)
+				{
+					ent->client->ps.eFlags |= EF_INVULNERABLE;
+					ent->client->invulnerableTimer = level.time + g_spawnInvulnerability.integer;
+				}
 			}
 		}
 		else

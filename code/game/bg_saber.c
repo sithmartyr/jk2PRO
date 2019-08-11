@@ -2,6 +2,14 @@
 #include "bg_public.h"
 #include "bg_local.h"
 
+#ifdef JK2_GAME
+#include "g_local.h"
+#endif
+
+#ifdef JK2_CGAME
+#include "../cgame/cg_local.h"
+#endif
+
 int PM_irand_timesync(int val1, int val2)
 {
 	int i;
@@ -1075,6 +1083,73 @@ qboolean PM_CanBackstab(void)
 	vec3_t fwd, back;
 	vec3_t trmins = {-15, -15, -8};
 	vec3_t trmaxs = {15, 15, 8};
+
+#ifdef JK2_GAME
+	if (jp_tweakSaber.integer & ST_EASIERBACKSLASH)
+		return qtrue;
+
+	if (jp_tweakSaber.integer & ST_EASYBACKSLASH) //easybackslash
+	{
+		gclient_t	*cl;
+		int i;
+		vec3_t diff = { 0 };
+
+		for (i = 0; i < level.numPlayingClients; i++) {
+			cl = &level.clients[level.sortedClients[i]];
+
+			if (cl->ps.pm_type == PM_DEAD)
+				continue;
+			if (cl->sess.sessionTeam == TEAM_SPECTATOR)
+				continue;
+			if (cl->ps.clientNum == pm->ps->clientNum)
+				continue;
+
+			VectorSubtract(cl->ps.origin, pm->ps->origin, diff);
+
+			//trap->Print("Diff: %.0f\n", diff[2]);
+			//Height restrictions: If we are more than 48 above them, cancel. if we are more than 32 below them, cancel
+
+			if ((diff[2] > 32) || (diff[2] < -48)) //Dont let them bs above or below us.
+				continue;
+
+			if (VectorLengthSquared(diff) < BACK_STAB_DISTANCE*BACK_STAB_DISTANCE)
+				return qtrue;
+
+		}
+	}
+#else
+	if (cgs.isJK2Pro && (cgs.jcinfo & JAPRO_CINFO_EASIERBACKSLASH))
+	{
+		return qtrue;
+	}
+
+	if (cgs.isJK2Pro && (cgs.jcinfo & JAPRO_CINFO_EASYBACKSLASH))
+	{
+		int i;
+		centity_t *cent;
+		vec3_t diff = { 0 };
+
+		for (i = 0; i < MAX_CLIENTS; i++) {
+			cent = &cg_entities[i];
+
+			if (!cent)
+				continue;
+			if (i == cg.clientNum) //&& !(((cg.predictedPlayerState.persistant[PERS_TEAM] == TEAM_SPECTATOR) && (cg.predictedPlayerState.pm_flags & PMF_FOLLOW)) && (i == cg.snap->ps.clientNum))   )
+				continue;
+			if (i == cg.snap->ps.clientNum)
+				continue;
+			if (cent->currentState.eFlags & EF_DEAD)
+				continue;
+			if (cent->currentState.eType != ET_PLAYER)
+				continue;
+
+			VectorSubtract(cent->currentState.origin, pm->ps->origin, diff);
+
+			if (VectorLengthSquared(diff) < BACK_STAB_DISTANCE*BACK_STAB_DISTANCE)
+				return qtrue;
+		}
+	}
+#endif
 
 	VectorCopy(pm->ps->viewangles, flatAng);
 	flatAng[PITCH] = 0;

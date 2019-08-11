@@ -699,6 +699,12 @@ void CVU_StartingWeapons(void) {
 	}
 }
 
+void CVU_TweakSaber(void) {
+	(jp_tweakSaber.integer & ST_EASYBACKSLASH) ?
+		(jcinfo.integer |= JAPRO_CINFO_EASYBACKSLASH) : (jcinfo.integer &= ~JAPRO_CINFO_EASYBACKSLASH);
+	trap_Cvar_Set("jcinfo", va("%i", jcinfo.integer));
+}
+
 void Svcmd_ToggleTweakWeapons_f(void) {
 	if (trap_Argc() == 1) {
 		int i = 0;
@@ -735,10 +741,61 @@ void Svcmd_ToggleTweakWeapons_f(void) {
 	}
 }
 
+static bitInfo_T saberTweaks[] = {
+	{ "No aim backslash" },//1
+	{ "Remove all backslash restrictions" },//2
+};
+static const int MAX_SABER_TWEAKS = ARRAY_LEN(saberTweaks);
+
+void CVU_TweakSaber(void);
+void Svcmd_ToggleTweakSaber_f(void) {
+	if (trap_Argc() == 1) {
+		int i = 0;
+		for (i = 0; i < MAX_SABER_TWEAKS; i++) {
+			if ((jp_tweakSaber.integer & (1 << i))) {
+				Com_Printf("%2d [X] %s\n", i, saberTweaks[i].string);
+			}
+			else {
+				Com_Printf("%2d [ ] %s\n", i, saberTweaks[i].string);
+			}
+		}
+		return;
+	}
+	else {
+		char arg[8] = { 0 };
+		int index;
+		const uint32_t mask = (1 << MAX_SABER_TWEAKS) - 1;
+
+		trap_Argv(1, arg, sizeof(arg));
+		index = atoi(arg);
+
+		//DM Start: New -1 toggle all options.
+		if (index < -1 || index >= MAX_SABER_TWEAKS) {  //Whereas we need to allow -1 now, we must change the limit for this value.
+			Com_Printf("tweakSaber: Invalid range: %i [0-%i, or -1 for toggle all]\n", index, MAX_SABER_TWEAKS - 1);
+			return;
+		}
+
+		if (index == -1) {
+			for (index = 0; index < MAX_SABER_TWEAKS; index++) {  //Read every tweak option and set it to the opposite of what it is currently set to.
+				trap_Cvar_Set("jp_tweakSaber", va("%i", (1 << index) ^ (jp_tweakSaber.integer & mask)));
+				trap_Cvar_Update(&jp_tweakSaber);
+				Com_Printf("%s %s^7\n", saberTweaks[index].string, ((jp_tweakSaber.integer & (1 << index)) ? "^2Enabled" : "^1Disabled"));
+				CVU_TweakSaber();
+			}
+		}
+		else {
+			trap_Cvar_Set("jp_tweakSaber", va("%i", (1 << index) ^ (jp_tweakSaber.integer & mask)));
+			trap_Cvar_Update(&jp_tweakSaber);
+			Com_Printf("%s %s^7\n", saberTweaks[index].string, ((jp_tweakSaber.integer & (1 << index)) ? "^2Enabled" : "^1Disabled"));
+			CVU_TweakSaber();
+		}
+		//DM End: New -1 toggle all options.
+	}
+}
+
 static bitInfo_T weaponDisable[] = { // MAX_WEAPON_TWEAKS tweaks (24)
 	{ "NONE" },//0
 	{ "Stun Baton" },//1
-	//{ "Melee" },
 	{ "Saber" },//2
 	{ "Bryar Pistol" },//3
 	{ "Blaster" },//4
@@ -751,8 +808,6 @@ static bitInfo_T weaponDisable[] = { // MAX_WEAPON_TWEAKS tweaks (24)
 	{ "Thermal" },//11
 	{ "Trip Mine" },//12
 	{ "Det Pack" },//13
-	//{ "Concussion Rifle" },
-	//{ "Old Bryar Pistol" },
 	{ "Emplaced Gun" },//14
 	{ "Turret" }//15
 };
@@ -1140,6 +1195,13 @@ qboolean	ConsoleCommand( void ) {
 		return qtrue;
 	}
 
+
+	if (Q_stricmp(cmd, "tweaksaber") == 0) {
+		Svcmd_ToggleTweakSaber_f();
+		return qtrue;
+	}
+	
+
 #if _DEBUG // Only in debug builds
 	if ( !Q_stricmp(cmd, "jk2gameplay") )
 	{
@@ -1173,8 +1235,8 @@ qboolean	ConsoleCommand( void ) {
 			return qtrue;
 		}
 		// everything else will also be printed as a say command
-		trap_SendServerCommand( -1, va("print \"server: %s\n\"", ConcatArgs(0) ) );
-		return qtrue;
+		//trap_SendServerCommand( -1, va("print \"server: %s\n\"", ConcatArgs(0) ) );
+		//return qtrue;
 	}
 
 	return qfalse;

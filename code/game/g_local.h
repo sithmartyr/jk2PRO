@@ -131,7 +131,7 @@ extern int dueltypes[MAX_CLIENTS];//JAPRO - Serverside - Fullforce Duels y is th
 //#define JAPRO_CINFO_NOJAWARUN		(1<<25) //Jawa run anim
 #define JAPRO_CINFO_BHOP2			(1<<10)	//option for only bhop mode
 
-#define JAPRO_CINFO_ROLLCANCEL		(1<<11)	//option for only bhop mode
+//#define JAPRO_CINFO_ROLLCANCEL		(1<<11)	//option for only bhop mode
 //#define JAPRO_CINFO_NOREDCHAIN		(1<<12)	//option for only bhop mode
 #define JAPRO_CINFO_PROJSNIPER		(1<<12)	//option for only bhop mode
 
@@ -175,24 +175,9 @@ extern int dueltypes[MAX_CLIENTS];//JAPRO - Serverside - Fullforce Duels y is th
 
 
 //Saber tweaks
-#define	ST_NO_MP_SABERLERP		(1<<0)
-#define ST_JK2_DMGSYSTEM		(1<<1)
-#define ST_REDUCE_SABERBLOCK	(1<<2)
-#define	ST_REDUCE_SABERDROP		(1<<3)
-#define ST_ALLOW_ROLLCANCEL		(1<<4) //CLIENT
-#define ST_NO_REDCHAIN			(1<<5)
-#define ST_FIXED_SABERSWITCH	(1<<6)
-#define ST_EASYBACKSLASH		(1<<7)
-#define ST_JK2RDFA				(1<<8)
-#define ST_FIXYELLOWDFA			(1<<9)
-#define ST_SPINREDDFA			(1<<10)
-#define ST_SPINBACKSLASH		(1<<11)
-#define ST_JK2LUNGE				(1<<12)
-#define ST_REDDFAFIX			(1<<13)
-#define ST_REDDFANOFORCE		(1<<14)
-#define ST_EASIERBACKSLASH		(1<<15)
-#define ST_SABERGUN				(1<<16)
-#define ST_FASTCYCLE			(1<<17)
+#define ST_EASYBACKSLASH		(1<<0)
+#define ST_EASIERBACKSLASH		(1<<1)
+
 
 //jp_tweakVote TWEAKS
 #define TV_ALLOW_SIEGESPECVOTE		(1<<0)
@@ -1449,6 +1434,7 @@ extern	vmCvar_t	jp_projectileInheritance;
 extern	vmCvar_t	jp_fullInheritance;
 extern	vmCvar_t	jp_unlagged;
 extern	vmCvar_t	jp_startingWeapons;
+extern	vmCvar_t	jp_tweakSaber;
 
 void	trap_Printf( const char *fmt );
 Q_NORETURN void	trap_Error( const char *fmt );

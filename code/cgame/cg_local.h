@@ -86,6 +86,9 @@
 #define DEFAULT_REDTEAM_NAME		"Empire"
 #define DEFAULT_BLUETEAM_NAME		"Rebellion"
 
+#define JAPRO_CINFO_EASYBACKSLASH	(1<<20) //No aim backslash
+#define	JAPRO_CINFO_EASIERBACKSLASH	(1<<31)
+
 typedef enum {
 	FOOTSTEP_NORMAL,
 	FOOTSTEP_METAL,
@@ -1406,6 +1409,11 @@ Ghoul2 Insert End
 	cgEffects_t		effects;
 
 	int				mvsdk_svFlags;
+
+	int				cinfo;
+	int				jcinfo;
+	int				restricts;
+	qboolean		isJK2Pro;
 
 } cgs_t;
 

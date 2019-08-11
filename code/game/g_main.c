@@ -181,6 +181,7 @@ vmCvar_t	jp_projectileInheritance;
 vmCvar_t	jp_fullInheritance;
 vmCvar_t	jp_unlagged;
 vmCvar_t	jp_startingWeapons;
+vmCvar_t	jp_tweakSaber;
 
 int gDuelist1 = -1;
 int gDuelist2 = -1;
@@ -386,6 +387,7 @@ static cvarTable_t		gameCvarTable[] = {
 	{ &jp_fullInheritance, "jp_fullInheritance", "0", CVAR_ARCHIVE, qtrue },
 	{ &jp_unlagged, "jp_unlagged", "0", CVAR_ARCHIVE | CVAR_LATCH, qtrue },
 	{ &jp_startingWeapons, "jp_startingWeapons", "4", CVAR_ARCHIVE, qtrue }, //Changed from def. value of 8 to 4, because we have no melee in JK2.
+	{ &jp_tweakSaber, "jp_tweakSaber", "0", CVAR_ARCHIVE, qtrue },
 };
 
 // bk001129 - made static to avoid aliasing
